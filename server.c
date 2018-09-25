@@ -107,6 +107,7 @@ int main(int argc, char** argv) {
 				// Read and send the file: packet by packet.
 				int totalPackets = ceil((fileSize % PACKET_DATA_SIZE) + 
 										(fileSize / PACKET_DATA_SIZE));
+				
 				swpState serverState;
 				// Read the first 5 packets.
 				// if (totalPackets >= 5) {
@@ -127,10 +128,10 @@ int main(int argc, char** argv) {
 					// 	printf("ERROR! File read error!");
 					// 	return -1;
 					// }
-
+					printf("Read %d bytes from a file.\n", elementsRead);
 					sendto(sockfd, buffer, elementsRead, 0, 
 						(struct sockaddr*)&clientaddr, sizeof(clientaddr));
-					printf("sent packet\n");
+					printf("Sent packet with this data.\n");
 					packetsSent++;
 
 					clearBuffer(buffer);

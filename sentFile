@@ -1,180 +1,671 @@
-/*
- * Michael Weir, Owen Dunn, Anthony Nguyen
- * Programming Project 1: Reliable File Transfer over UDP
- * Cis 457
- * Fall 2018
- *
- * Server:
- * When started, the server asks for a port number. The server then listens
- * for connections on that port. The sliding window protocol is implemented
- * to allow reliable file transfer with UDP. A window size of 5 is used.
- * 
- * Run: ./exename portnumber 
- */
+Owen Dunn
+CIS 163
+Lab 7: File System Advanced
+2/21/17
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <math.h>
-#include "project1.h"  // implementation in .h file
+1) A directory is a location that stores a list of files. A file has information that may be accessed, such as text. The output of "ls-l" shows a directory as 'd' as the leftmost character and a '-' as the leftmost character for a regular file.
+2) Output after entering "date": 10:48:40 EST 2017
+3) Output after "ls -1" from my home directory: 
+total 48
+drwx--x--x 2 dunnow users 4096 Sep  7 19:47 backup
+drwx--x--x 6 dunnow users 4096 Feb 21 10:49 CIS163
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Desktop
+drwxr-xr-x 4 dunnow users 4096 Feb 15 12:19 Documents
+drwxr-xr-x 2 dunnow users 4096 Feb 15 11:03 Downloads
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Music
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Pictures
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Public
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Templates
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Videos
+4) From home directory, directory CIS163 was modified in the last three days.
+5) The output from the "ls -lt" command list all of the files in order of last modification. The most recently modified files start first. The Music directory has not been updated the longest. It was updated on August 31.
+6) Output from command "ls -ltc" lists the files in order of most recently changed file status information/properties. The directory CIS163 had its file status info./props. modified today.
+7) Output from command "ls -ltu" displays the most recent access dates of each file. CIS 163 directory has most recently been accessed.
+8) Selecting "CIS163" directory file, command "stat CIS163" outputs the following:
+  File: ‘CIS163’
+  Size: 4096      	Blocks: 8          IO Block: 4096   directory
+Device: 26h/38d	Inode: 156053623   Links: 6
+Access: (0711/drwx--x--x)  Uid: ( 8435/  dunnow)   Gid: (  500/   users)
+Access: 2017-02-08 11:28:44.742617246 -0500
+Modify: 2017-02-22 08:16:46.554951665 -0500
+Change: 2017-02-22 08:16:46.554951665 -0500
+ Birth: -
+9) Changing the directory to "/lab/web/htdocs/Academics", its contents are displayed by the command "ls -l": All files are directories except for "index.php". "nobody" is the user owner of these directories. The group owner is "511".
+total 24
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 CourseDescriptions
+drwxr-xr-x 2 nobody 511 4096 Jul 21  2009 Honesty
+-rwxr-xr-x 1 nobody 511 1125 Mar 24  2010 index.php
+drwxr-xr-x 2 nobody 511 4096 May 26  2010 Internship
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 OptOut
+drwxr-xr-x 2 nobody 511 4096 Mar 26  2010 SecondAdmit
+10) In the home directory, entering the two commands: "echo Line one > out.txt" and "echo Line two >> out.txt" creates a new file named "out.txt" with the text "Line one\nLine two".
+The link count to this file is 1. After creating a hardlink (alias) of the file by typing "ln out.txt out-alias.txt" the link count changes to 2.
+11) The size and content of the original file and the created alias are the same. The "cat filename" command is used to see the content of a file.
+12) After removing the file "out.txt" using the "rm" command, the link count is changed to 1 for the alias. the content of the alias is the same as the original file.
+13) A "hard link" is just an additional name for an existing file.
+14) Creating a soft link with the command "ln -s out-alias.txt sym-alias.txt", the link count of the two files is both at 1.
+15) The command "ls -l out-alias.txt sym-alias.txt" displays all the information for both files. The symbolic link starts with as 'l' in the filetype string, while the original file starts with '-'. In addition, the file size for the link is smaller.
+16) After deleting the file "out-alias.txt", and then typing "cat sym-alias.txt" an error message resulted: "No such file or directory".
+17) A soft link only directs you to a file, while a hard link is like a copy of a file. A hard link may go to the actual location in memory, so it can still may be accessed after being "deleted".
+18) The command "id" allows you to see which default group you belong to (listed in the middle). I belong the the "users" group for my default.
+19 and 20) Changing the directory to the root Unix directory and entering "ls -l": the user and group owner for all directories, files, and links are "root". The third group of 3 characters lists the permissions for those who arn't part of the group or user of the file. This included myself. I don't have any access to the "root" directory. I can create a new file in the "tmp" directory.
+total 96
+-rw-r--r--     1 root root     0 Dec 20 16:59 1
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 bin -> usr/bin
+dr-xr-xr-x.    4 root root  4096 Feb  1 13:55 boot
+drwxr-xr-x     3 root root  4096 Feb 14 09:26 den_research
+drwxr-xr-x    19 root root  3380 Feb 21 10:51 dev
+drwxr-xr-x.  154 root root 12288 Feb 16 12:52 etc
+drwxr-xr-x  1928 root root 40960 Feb 21 11:07 home
+drwxr-xr-x    11 root root  4096 Jan 30 12:46 lab
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 lib -> usr/lib
+lrwxrwxrwx     1 root root     9 Dec 20 16:58 lib64 -> usr/lib64
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 media
+drwxr-xr-x.    3 root root    16 Nov  5 11:38 mnt
+drwxr-xr-x    14 root root  4096 Jul 26  2016 networking
+drwxr-xr-x.    5 root root    41 Feb  1 14:17 opt
+drwxr-xr-x     3 root root    16 Dec 23 15:33 opt2
+dr-xr-xr-x   295 root root     0 Feb  1 09:01 proc
+drwxr-xr-x     6 root root  4096 Feb 14 09:17 research
+dr-xr-x---.   13 root root  4096 Feb  1 14:06 root
+drwxr-xr-x    39 root root  1380 Feb 21 09:57 run
+lrwxrwxrwx     1 root root     8 Dec 20 16:58 sbin -> usr/sbin
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 srv
+dr-xr-xr-x    13 root root     0 Feb  1 09:01 sys
+drwxrwxrwt.   55 root root  4096 Feb 22 08:48 tmp
+drwxr-xr-x.   14 root root  4096 Dec 20 16:58 usr
+drwxr-xr-x.   20 root root  4096 Feb  1 09:01 var
+21) To make it so nobody can delete any files from the subdirectory "ImportantStuff", enter "chmod a-w ImportantStuff".
+22) The command "chmos u-r,g-r,o-r myFile" is equivalent to "chmod a-r myFile". The command "chmod u+rw,g-rw,o-rw myNotes" is "chmod a+rw myNotes".
+Owen Dunn
+CIS 163
+Lab 7: File System Advanced
+2/21/17
 
-int createUDPSocket(int portnumber, struct sockaddr_in serveraddr);
+1) A directory is a location that stores a list of files. A file has information that may be accessed, such as text. The output of "ls-l" shows a directory as 'd' as the leftmost character and a '-' as the leftmost character for a regular file.
+2) Output after entering "date": 10:48:40 EST 2017
+3) Output after "ls -1" from my home directory: 
+total 48
+drwx--x--x 2 dunnow users 4096 Sep  7 19:47 backup
+drwx--x--x 6 dunnow users 4096 Feb 21 10:49 CIS163
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Desktop
+drwxr-xr-x 4 dunnow users 4096 Feb 15 12:19 Documents
+drwxr-xr-x 2 dunnow users 4096 Feb 15 11:03 Downloads
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Music
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Pictures
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Public
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Templates
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Videos
+4) From home directory, directory CIS163 was modified in the last three days.
+5) The output from the "ls -lt" command list all of the files in order of last modification. The most recently modified files start first. The Music directory has not been updated the longest. It was updated on August 31.
+6) Output from command "ls -ltc" lists the files in order of most recently changed file status information/properties. The directory CIS163 had its file status info./props. modified today.
+7) Output from command "ls -ltu" displays the most recent access dates of each file. CIS 163 directory has most recently been accessed.
+8) Selecting "CIS163" directory file, command "stat CIS163" outputs the following:
+  File: ‘CIS163’
+  Size: 4096      	Blocks: 8          IO Block: 4096   directory
+Device: 26h/38d	Inode: 156053623   Links: 6
+Access: (0711/drwx--x--x)  Uid: ( 8435/  dunnow)   Gid: (  500/   users)
+Access: 2017-02-08 11:28:44.742617246 -0500
+Modify: 2017-02-22 08:16:46.554951665 -0500
+Change: 2017-02-22 08:16:46.554951665 -0500
+ Birth: -
+9) Changing the directory to "/lab/web/htdocs/Academics", its contents are displayed by the command "ls -l": All files are directories except for "index.php". "nobody" is the user owner of these directories. The group owner is "511".
+total 24
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 CourseDescriptions
+drwxr-xr-x 2 nobody 511 4096 Jul 21  2009 Honesty
+-rwxr-xr-x 1 nobody 511 1125 Mar 24  2010 index.php
+drwxr-xr-x 2 nobody 511 4096 May 26  2010 Internship
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 OptOut
+drwxr-xr-x 2 nobody 511 4096 Mar 26  2010 SecondAdmit
+10) In the home directory, entering the two commands: "echo Line one > out.txt" and "echo Line two >> out.txt" creates a new file named "out.txt" with the text "Line one\nLine two".
+The link count to this file is 1. After creating a hardlink (alias) of the file by typing "ln out.txt out-alias.txt" the link count changes to 2.
+11) The size and content of the original file and the created alias are the same. The "cat filename" command is used to see the content of a file.
+12) After removing the file "out.txt" using the "rm" command, the link count is changed to 1 for the alias. the content of the alias is the same as the original file.
+13) A "hard link" is just an additional name for an existing file.
+14) Creating a soft link with the command "ln -s out-alias.txt sym-alias.txt", the link count of the two files is both at 1.
+15) The command "ls -l out-alias.txt sym-alias.txt" displays all the information for both files. The symbolic link starts with as 'l' in the filetype string, while the original file starts with '-'. In addition, the file size for the link is smaller.
+16) After deleting the file "out-alias.txt", and then typing "cat sym-alias.txt" an error message resulted: "No such file or directory".
+17) A soft link only directs you to a file, while a hard link is like a copy of a file. A hard link may go to the actual location in memory, so it can still may be accessed after being "deleted".
+18) The command "id" allows you to see which default group you belong to (listed in the middle). I belong the the "users" group for my default.
+19 and 20) Changing the directory to the root Unix directory and entering "ls -l": the user and group owner for all directories, files, and links are "root". The third group of 3 characters lists the permissions for those who arn't part of the group or user of the file. This included myself. I don't have any access to the "root" directory. I can create a new file in the "tmp" directory.
+total 96
+-rw-r--r--     1 root root     0 Dec 20 16:59 1
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 bin -> usr/bin
+dr-xr-xr-x.    4 root root  4096 Feb  1 13:55 boot
+drwxr-xr-x     3 root root  4096 Feb 14 09:26 den_research
+drwxr-xr-x    19 root root  3380 Feb 21 10:51 dev
+drwxr-xr-x.  154 root root 12288 Feb 16 12:52 etc
+drwxr-xr-x  1928 root root 40960 Feb 21 11:07 home
+drwxr-xr-x    11 root root  4096 Jan 30 12:46 lab
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 lib -> usr/lib
+lrwxrwxrwx     1 root root     9 Dec 20 16:58 lib64 -> usr/lib64
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 media
+drwxr-xr-x.    3 root root    16 Nov  5 11:38 mnt
+drwxr-xr-x    14 root root  4096 Jul 26  2016 networking
+drwxr-xr-x.    5 root root    41 Feb  1 14:17 opt
+drwxr-xr-x     3 root root    16 Dec 23 15:33 opt2
+dr-xr-xr-x   295 root root     0 Feb  1 09:01 proc
+drwxr-xr-x     6 root root  4096 Feb 14 09:17 research
+dr-xr-x---.   13 root root  4096 Feb  1 14:06 root
+drwxr-xr-x    39 root root  1380 Feb 21 09:57 run
+lrwxrwxrwx     1 root root     8 Dec 20 16:58 sbin -> usr/sbin
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 srv
+dr-xr-xr-x    13 root root     0 Feb  1 09:01 sys
+drwxrwxrwt.   55 root root  4096 Feb 22 08:48 tmp
+drwxr-xr-x.   14 root root  4096 Dec 20 16:58 usr
+drwxr-xr-x.   20 root root  4096 Feb  1 09:01 var
+21) To make it so nobody can delete any files from the subdirectory "ImportantStuff", enter "chmod a-w ImportantStuff".
+22) The command "chmos u-r,g-r,o-r myFile" is equivalent to "chmod a-r myFile". The command "chmod u+rw,g-rw,o-rw myNotes" is "chmod a+rw myNotes".
 
-int main(int argc, char** argv) {
-	printf("--------------UDP file transfer server--------------\n");
-	printf("Sent file requests must be in the current directory.\n");
-	printf("Run: ./exename portnumber\n");
 
-	int portnumber;
-	// Allow command line input. (save time testing)
-	if (argc == 2) {
-		portnumber = atoi(argv[1]);
-		if (!isValidPort(portnumber)) {
-			return -1;
-		}
-		printf("Using port: %d\n", portnumber);
-	} else {
-		printf("Invalid command line input.\n");
-		printf("Run: ./exename portnumber \n");
-	}
 
-	FILE *fp;	
-	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sockfd < 0) {
-		printf("There was an error creating the socket.\n");
-		return 1;
-	}
 
-	struct timeval timeout;
-	timeout.tv_sec = 5;   // seconds
-	timeout.tv_usec = 0;  // micro sec
 
-	//set options sockfd, option1, option2
-	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, 
-		sizeof(timeout));
+Owen Dunn
+CIS 163
+Lab 7: File System Advanced
+2/21/17
 
-	struct sockaddr_in serveraddr, clientaddr;
+1) A directory is a location that stores a list of files. A file has information that may be accessed, such as text. The output of "ls-l" shows a directory as 'd' as the leftmost character and a '-' as the leftmost character for a regular file.
+2) Output after entering "date": 10:48:40 EST 2017
+3) Output after "ls -1" from my home directory: 
+total 48
+drwx--x--x 2 dunnow users 4096 Sep  7 19:47 backup
+drwx--x--x 6 dunnow users 4096 Feb 21 10:49 CIS163
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Desktop
+drwxr-xr-x 4 dunnow users 4096 Feb 15 12:19 Documents
+drwxr-xr-x 2 dunnow users 4096 Feb 15 11:03 Downloads
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Music
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Pictures
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Public
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Templates
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Videos
+4) From home directory, directory CIS163 was modified in the last three days.
+5) The output from the "ls -lt" command list all of the files in order of last modification. The most recently modified files start first. The Music directory has not been updated the longest. It was updated on August 31.
+6) Output from command "ls -ltc" lists the files in order of most recently changed file status information/properties. The directory CIS163 had its file status info./props. modified today.
+7) Output from command "ls -ltu" displays the most recent access dates of each file. CIS 163 directory has most recently been accessed.
+8) Selecting "CIS163" directory file, command "stat CIS163" outputs the following:
+  File: ‘CIS163’
+  Size: 4096      	Blocks: 8          IO Block: 4096   directory
+Device: 26h/38d	Inode: 156053623   Links: 6
+Access: (0711/drwx--x--x)  Uid: ( 8435/  dunnow)   Gid: (  500/   users)
+Access: 2017-02-08 11:28:44.742617246 -0500
+Modify: 2017-02-22 08:16:46.554951665 -0500
+Change: 2017-02-22 08:16:46.554951665 -0500
+ Birth: -
+9) Changing the directory to "/lab/web/htdocs/Academics", its contents are displayed by the command "ls -l": All files are directories except for "index.php". "nobody" is the user owner of these directories. The group owner is "511".
+total 24
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 CourseDescriptions
+drwxr-xr-x 2 nobody 511 4096 Jul 21  2009 Honesty
+-rwxr-xr-x 1 nobody 511 1125 Mar 24  2010 index.php
+drwxr-xr-x 2 nobody 511 4096 May 26  2010 Internship
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 OptOut
+drwxr-xr-x 2 nobody 511 4096 Mar 26  2010 SecondAdmit
+10) In the home directory, entering the two commands: "echo Line one > out.txt" and "echo Line two >> out.txt" creates a new file named "out.txt" with the text "Line one\nLine two".
+The link count to this file is 1. After creating a hardlink (alias) of the file by typing "ln out.txt out-alias.txt" the link count changes to 2.
+11) The size and content of the original file and the created alias are the same. The "cat filename" command is used to see the content of a file.
+12) After removing the file "out.txt" using the "rm" command, the link count is changed to 1 for the alias. the content of the alias is the same as the original file.
+13) A "hard link" is just an additional name for an existing file.
+14) Creating a soft link with the command "ln -s out-alias.txt sym-alias.txt", the link count of the two files is both at 1.
+15) The command "ls -l out-alias.txt sym-alias.txt" displays all the information for both files. The symbolic link starts with as 'l' in the filetype string, while the original file starts with '-'. In addition, the file size for the link is smaller.
+16) After deleting the file "out-alias.txt", and then typing "cat sym-alias.txt" an error message resulted: "No such file or directory".
+17) A soft link only directs you to a file, while a hard link is like a copy of a file. A hard link may go to the actual location in memory, so it can still may be accessed after being "deleted".
+18) The command "id" allows you to see which default group you belong to (listed in the middle). I belong the the "users" group for my default.
+19 and 20) Changing the directory to the root Unix directory and entering "ls -l": the user and group owner for all directories, files, and links are "root". The third group of 3 characters lists the permissions for those who arn't part of the group or user of the file. This included myself. I don't have any access to the "root" directory. I can create a new file in the "tmp" directory.
+total 96
+-rw-r--r--     1 root root     0 Dec 20 16:59 1
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 bin -> usr/bin
+dr-xr-xr-x.    4 root root  4096 Feb  1 13:55 boot
+drwxr-xr-x     3 root root  4096 Feb 14 09:26 den_research
+drwxr-xr-x    19 root root  3380 Feb 21 10:51 dev
+drwxr-xr-x.  154 root root 12288 Feb 16 12:52 etc
+drwxr-xr-x  1928 root root 40960 Feb 21 11:07 home
+drwxr-xr-x    11 root root  4096 Jan 30 12:46 lab
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 lib -> usr/lib
+lrwxrwxrwx     1 root root     9 Dec 20 16:58 lib64 -> usr/lib64
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 media
+drwxr-xr-x.    3 root root    16 Nov  5 11:38 mnt
+drwxr-xr-x    14 root root  4096 Jul 26  2016 networking
+drwxr-xr-x.    5 root root    41 Feb  1 14:17 opt
+drwxr-xr-x     3 root root    16 Dec 23 15:33 opt2
+dr-xr-xr-x   295 root root     0 Feb  1 09:01 proc
+drwxr-xr-x     6 root root  4096 Feb 14 09:17 research
+dr-xr-x---.   13 root root  4096 Feb  1 14:06 root
+drwxr-xr-x    39 root root  1380 Feb 21 09:57 run
+lrwxrwxrwx     1 root root     8 Dec 20 16:58 sbin -> usr/sbin
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 srv
+dr-xr-xr-x    13 root root     0 Feb  1 09:01 sys
+drwxrwxrwt.   55 root root  4096 Feb 22 08:48 tmp
+drwxr-xr-x.   14 root root  4096 Dec 20 16:58 usr
+drwxr-xr-x.   20 root root  4096 Feb  1 09:01 var
+21) To make it so nobody can delete any files from the subdirectory "ImportantStuff", enter "chmod a-w ImportantStuff".
+22) The command "chmos u-r,g-r,o-r myFile" is equivalent to "chmod a-r myFile". The command "chmod u+rw,g-rw,o-rw myNotes" is "chmod a+rw myNotes".
 
-	serveraddr.sin_family = AF_INET;
-	serveraddr.sin_port = htons(portnumber);
-	serveraddr.sin_addr.s_addr = INADDR_ANY;
 
-	int b = bind(sockfd,(struct sockaddr*)&serveraddr, sizeof(serveraddr));
-	if (b < 0) {
-		printf("failed to bind\n");
-		return 2;
-	}
 
-	long fileSize = 0;
-	struct stat fileStats;
-	int elementsRead = 0;
-	int packetsSent = 0;
-	while(1){
-		int len = sizeof(clientaddr);
-		char line[PACKET_DATA_SIZE];
-		char buffer[PACKET_DATA_SIZE];
-		int n = recvfrom(sockfd, line, WINDOW_SIZE * PACKET_DATA_SIZE, 0, 
-			(struct sockaddr*)&clientaddr, &len);
-		if(n == -1){
-			printf("time out on receive\n");
-		}
-		else{
-			printf("Got file request from client: %s\n", line);
-		
-			if((fp = fopen(line, "r")) == NULL){  // returns file pointer (fp)
-				printf("File does not exist\n");
-			}	
-			else{
-				// Get the file size.
-				int status = stat(line, &fileStats);
-				if (status == 0) {
-					fileSize = fileStats.st_size;
-					printf("File \"%s\" size: %d bytes\n", line, fileSize);
-				} else {
-					printf("Failed to read file size.\n");
-					return -1;
-				}
-				sprintf(buffer, "%d", fileSize);
-				//printf("file size: %s\n", buffer);
-				sendto(sockfd, buffer, strlen(buffer)+1, 0, 
-						(struct sockaddr*)&clientaddr, sizeof(clientaddr));
 
-				// Read and send the file: packet by packet.
-				int totalPackets = ceil((fileSize % PACKET_DATA_SIZE) + 
-										(fileSize / PACKET_DATA_SIZE));
-				swpState serverState;
-				// Read the first 5 packets.
-				// if (totalPackets >= 5) {
-				// 	fread(buffer, 1, PACKET_DATA_SIZE, fp);
-				// } else if (totalPackets < 5 && totalPackets != 0) {
-				// 	fread(buffer, 1, PACKET_DATA_SIZE, fp);
-				// } else {
-				// 	printf("No data to be read!");
-				// 	return 1;
-				// }
-				// while (  ) {
 
-				// }
+Owen Dunn
+CIS 163
+Lab 7: File System Advanced
+2/21/17
 
-				// Read and send all the file data 1024 bytes at a time.
-				while ( (elementsRead = fread(buffer, 1, PACKET_DATA_SIZE, fp)) > 0 ) { 
-					// if (elementsRead != PACKET_DATA_SIZE) {
-					// 	printf("ERROR! File read error!");
-					// 	return -1;
-					// }
+1) A directory is a location that stores a list of files. A file has information that may be accessed, such as text. The output of "ls-l" shows a directory as 'd' as the leftmost character and a '-' as the leftmost character for a regular file.
+2) Output after entering "date": 10:48:40 EST 2017
+3) Output after "ls -1" from my home directory: 
+total 48
+drwx--x--x 2 dunnow users 4096 Sep  7 19:47 backup
+drwx--x--x 6 dunnow users 4096 Feb 21 10:49 CIS163
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Desktop
+drwxr-xr-x 4 dunnow users 4096 Feb 15 12:19 Documents
+drwxr-xr-x 2 dunnow users 4096 Feb 15 11:03 Downloads
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Music
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Pictures
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Public
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Templates
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Videos
+4) From home directory, directory CIS163 was modified in the last three days.
+5) The output from the "ls -lt" command list all of the files in order of last modification. The most recently modified files start first. The Music directory has not been updated the longest. It was updated on August 31.
+6) Output from command "ls -ltc" lists the files in order of most recently changed file status information/properties. The directory CIS163 had its file status info./props. modified today.
+7) Output from command "ls -ltu" displays the most recent access dates of each file. CIS 163 directory has most recently been accessed.
+8) Selecting "CIS163" directory file, command "stat CIS163" outputs the following:
+  File: ‘CIS163’
+  Size: 4096      	Blocks: 8          IO Block: 4096   directory
+Device: 26h/38d	Inode: 156053623   Links: 6
+Access: (0711/drwx--x--x)  Uid: ( 8435/  dunnow)   Gid: (  500/   users)
+Access: 2017-02-08 11:28:44.742617246 -0500
+Modify: 2017-02-22 08:16:46.554951665 -0500
+Change: 2017-02-22 08:16:46.554951665 -0500
+ Birth: -
+9) Changing the directory to "/lab/web/htdocs/Academics", its contents are displayed by the command "ls -l": All files are directories except for "index.php". "nobody" is the user owner of these directories. The group owner is "511".
+total 24
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 CourseDescriptions
+drwxr-xr-x 2 nobody 511 4096 Jul 21  2009 Honesty
+-rwxr-xr-x 1 nobody 511 1125 Mar 24  2010 index.php
+drwxr-xr-x 2 nobody 511 4096 May 26  2010 Internship
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 OptOut
+drwxr-xr-x 2 nobody 511 4096 Mar 26  2010 SecondAdmit
+10) In the home directory, entering the two commands: "echo Line one > out.txt" and "echo Line two >> out.txt" creates a new file named "out.txt" with the text "Line one\nLine two".
+The link count to this file is 1. After creating a hardlink (alias) of the file by typing "ln out.txt out-alias.txt" the link count changes to 2.
+11) The size and content of the original file and the created alias are the same. The "cat filename" command is used to see the content of a file.
+12) After removing the file "out.txt" using the "rm" command, the link count is changed to 1 for the alias. the content of the alias is the same as the original file.
+13) A "hard link" is just an additional name for an existing file.
+14) Creating a soft link with the command "ln -s out-alias.txt sym-alias.txt", the link count of the two files is both at 1.
+15) The command "ls -l out-alias.txt sym-alias.txt" displays all the information for both files. The symbolic link starts with as 'l' in the filetype string, while the original file starts with '-'. In addition, the file size for the link is smaller.
+16) After deleting the file "out-alias.txt", and then typing "cat sym-alias.txt" an error message resulted: "No such file or directory".
+17) A soft link only directs you to a file, while a hard link is like a copy of a file. A hard link may go to the actual location in memory, so it can still may be accessed after being "deleted".
+18) The command "id" allows you to see which default group you belong to (listed in the middle). I belong the the "users" group for my default.
+19 and 20) Changing the directory to the root Unix directory and entering "ls -l": the user and group owner for all directories, files, and links are "root". The third group of 3 characters lists the permissions for those who arn't part of the group or user of the file. This included myself. I don't have any access to the "root" directory. I can create a new file in the "tmp" directory.
+total 96
+-rw-r--r--     1 root root     0 Dec 20 16:59 1
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 bin -> usr/bin
+dr-xr-xr-x.    4 root root  4096 Feb  1 13:55 boot
+drwxr-xr-x     3 root root  4096 Feb 14 09:26 den_research
+drwxr-xr-x    19 root root  3380 Feb 21 10:51 dev
+drwxr-xr-x.  154 root root 12288 Feb 16 12:52 etc
+drwxr-xr-x  1928 root root 40960 Feb 21 11:07 home
+drwxr-xr-x    11 root root  4096 Jan 30 12:46 lab
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 lib -> usr/lib
+lrwxrwxrwx     1 root root     9 Dec 20 16:58 lib64 -> usr/lib64
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 media
+drwxr-xr-x.    3 root root    16 Nov  5 11:38 mnt
+drwxr-xr-x    14 root root  4096 Jul 26  2016 networking
+drwxr-xr-x.    5 root root    41 Feb  1 14:17 opt
+drwxr-xr-x     3 root root    16 Dec 23 15:33 opt2
+dr-xr-xr-x   295 root root     0 Feb  1 09:01 proc
+drwxr-xr-x     6 root root  4096 Feb 14 09:17 research
+dr-xr-x---.   13 root root  4096 Feb  1 14:06 root
+drwxr-xr-x    39 root root  1380 Feb 21 09:57 run
+lrwxrwxrwx     1 root root     8 Dec 20 16:58 sbin -> usr/sbin
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 srv
+dr-xr-xr-x    13 root root     0 Feb  1 09:01 sys
+drwxrwxrwt.   55 root root  4096 Feb 22 08:48 tmp
+drwxr-xr-x.   14 root root  4096 Dec 20 16:58 usr
+drwxr-xr-x.   20 root root  4096 Feb  1 09:01 var
+21) To make it so nobody can delete any files from the subdirectory "ImportantStuff", enter "chmod a-w ImportantStuff".
+22) The command "chmos u-r,g-r,o-r myFile" is equivalent to "chmod a-r myFile". The command "chmod u+rw,g-rw,o-rw myNotes" is "chmod a+rw myNotes".
 
-					sendto(sockfd, buffer, elementsRead, 0, 
-						(struct sockaddr*)&clientaddr, sizeof(clientaddr));
-					printf("sent packet\n");
-					packetsSent++;
 
-					clearBuffer(buffer);
-				}
-				printf("Sent %d packets\n", packetsSent);
 
-				// Close the socket when done reading file to allow client to
-				// complete its file transaction.
-				//close(sockfd);
-			
-				//printf("%s\n", buffer);  //  should only run for text files
 
-				// Append a header to the front of the file? (first x bits)
 
-				fclose(fp);  // close the file
-				// create a new socket to allow another client
-				//sockfd = createUDPSocket(portnumber, serveraddr);
-			}	
-		}
-	}
+Owen Dunn
+CIS 163
+Lab 7: File System Advanced
+2/21/17
 
-	return 0;
-}
+1) A directory is a location that stores a list of files. A file has information that may be accessed, such as text. The output of "ls-l" shows a directory as 'd' as the leftmost character and a '-' as the leftmost character for a regular file.
+2) Output after entering "date": 10:48:40 EST 2017
+3) Output after "ls -1" from my home directory: 
+total 48
+drwx--x--x 2 dunnow users 4096 Sep  7 19:47 backup
+drwx--x--x 6 dunnow users 4096 Feb 21 10:49 CIS163
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Desktop
+drwxr-xr-x 4 dunnow users 4096 Feb 15 12:19 Documents
+drwxr-xr-x 2 dunnow users 4096 Feb 15 11:03 Downloads
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Music
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Pictures
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Public
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Templates
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Videos
+4) From home directory, directory CIS163 was modified in the last three days.
+5) The output from the "ls -lt" command list all of the files in order of last modification. The most recently modified files start first. The Music directory has not been updated the longest. It was updated on August 31.
+6) Output from command "ls -ltc" lists the files in order of most recently changed file status information/properties. The directory CIS163 had its file status info./props. modified today.
+7) Output from command "ls -ltu" displays the most recent access dates of each file. CIS 163 directory has most recently been accessed.
+8) Selecting "CIS163" directory file, command "stat CIS163" outputs the following:
+  File: ‘CIS163’
+  Size: 4096      	Blocks: 8          IO Block: 4096   directory
+Device: 26h/38d	Inode: 156053623   Links: 6
+Access: (0711/drwx--x--x)  Uid: ( 8435/  dunnow)   Gid: (  500/   users)
+Access: 2017-02-08 11:28:44.742617246 -0500
+Modify: 2017-02-22 08:16:46.554951665 -0500
+Change: 2017-02-22 08:16:46.554951665 -0500
+ Birth: -
+9) Changing the directory to "/lab/web/htdocs/Academics", its contents are displayed by the command "ls -l": All files are directories except for "index.php". "nobody" is the user owner of these directories. The group owner is "511".
+total 24
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 CourseDescriptions
+drwxr-xr-x 2 nobody 511 4096 Jul 21  2009 Honesty
+-rwxr-xr-x 1 nobody 511 1125 Mar 24  2010 index.php
+drwxr-xr-x 2 nobody 511 4096 May 26  2010 Internship
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 OptOut
+drwxr-xr-x 2 nobody 511 4096 Mar 26  2010 SecondAdmit
+10) In the home directory, entering the two commands: "echo Line one > out.txt" and "echo Line two >> out.txt" creates a new file named "out.txt" with the text "Line one\nLine two".
+The link count to this file is 1. After creating a hardlink (alias) of the file by typing "ln out.txt out-alias.txt" the link count changes to 2.
+11) The size and content of the original file and the created alias are the same. The "cat filename" command is used to see the content of a file.
+12) After removing the file "out.txt" using the "rm" command, the link count is changed to 1 for the alias. the content of the alias is the same as the original file.
+13) A "hard link" is just an additional name for an existing file.
+14) Creating a soft link with the command "ln -s out-alias.txt sym-alias.txt", the link count of the two files is both at 1.
+15) The command "ls -l out-alias.txt sym-alias.txt" displays all the information for both files. The symbolic link starts with as 'l' in the filetype string, while the original file starts with '-'. In addition, the file size for the link is smaller.
+16) After deleting the file "out-alias.txt", and then typing "cat sym-alias.txt" an error message resulted: "No such file or directory".
+17) A soft link only directs you to a file, while a hard link is like a copy of a file. A hard link may go to the actual location in memory, so it can still may be accessed after being "deleted".
+18) The command "id" allows you to see which default group you belong to (listed in the middle). I belong the the "users" group for my default.
+19 and 20) Changing the directory to the root Unix directory and entering "ls -l": the user and group owner for all directories, files, and links are "root". The third group of 3 characters lists the permissions for those who arn't part of the group or user of the file. This included myself. I don't have any access to the "root" directory. I can create a new file in the "tmp" directory.
+total 96
+-rw-r--r--     1 root root     0 Dec 20 16:59 1
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 bin -> usr/bin
+dr-xr-xr-x.    4 root root  4096 Feb  1 13:55 boot
+drwxr-xr-x     3 root root  4096 Feb 14 09:26 den_research
+drwxr-xr-x    19 root root  3380 Feb 21 10:51 dev
+drwxr-xr-x.  154 root root 12288 Feb 16 12:52 etc
+drwxr-xr-x  1928 root root 40960 Feb 21 11:07 home
+drwxr-xr-x    11 root root  4096 Jan 30 12:46 lab
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 lib -> usr/lib
+lrwxrwxrwx     1 root root     9 Dec 20 16:58 lib64 -> usr/lib64
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 media
+drwxr-xr-x.    3 root root    16 Nov  5 11:38 mnt
+drwxr-xr-x    14 root root  4096 Jul 26  2016 networking
+drwxr-xr-x.    5 root root    41 Feb  1 14:17 opt
+drwxr-xr-x     3 root root    16 Dec 23 15:33 opt2
+dr-xr-xr-x   295 root root     0 Feb  1 09:01 proc
+drwxr-xr-x     6 root root  4096 Feb 14 09:17 research
+dr-xr-x---.   13 root root  4096 Feb  1 14:06 root
+drwxr-xr-x    39 root root  1380 Feb 21 09:57 run
+lrwxrwxrwx     1 root root     8 Dec 20 16:58 sbin -> usr/sbin
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 srv
+dr-xr-xr-x    13 root root     0 Feb  1 09:01 sys
+drwxrwxrwt.   55 root root  4096 Feb 22 08:48 tmp
+drwxr-xr-x.   14 root root  4096 Dec 20 16:58 usr
+drwxr-xr-x.   20 root root  4096 Feb  1 09:01 var
+21) To make it so nobody can delete any files from the subdirectory "ImportantStuff", enter "chmod a-w ImportantStuff".
+22) The command "chmos u-r,g-r,o-r myFile" is equivalent to "chmod a-r myFile". The command "chmod u+rw,g-rw,o-rw myNotes" is "chmod a+rw myNotes".
 
-int createUDPSocket(int portnumber, struct sockaddr_in serveraddr) {
-	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sockfd < 0) {
-		printf("There was an error creating the socket.\n");
-		exit(1);
-	}
-	struct timeval timeout;
-	timeout.tv_sec = 5;   // seconds
-	timeout.tv_usec = 0;  // micro sec
 
-	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, 
-			   sizeof(timeout));
-	serveraddr.sin_family = AF_INET;
-	serveraddr.sin_port = htons(portnumber);
-	serveraddr.sin_addr.s_addr = INADDR_ANY;
-	int b = bind(sockfd,(struct sockaddr*)&serveraddr, sizeof(serveraddr));
-	if (b < 0) {
-		printf("failed to bind\n");
-		exit(1);
-	}
 
-	return sockfd;
-}
+
+
+Owen Dunn
+CIS 163
+Lab 7: File System Advanced
+2/21/17
+
+1) A directory is a location that stores a list of files. A file has information that may be accessed, such as text. The output of "ls-l" shows a directory as 'd' as the leftmost character and a '-' as the leftmost character for a regular file.
+2) Output after entering "date": 10:48:40 EST 2017
+3) Output after "ls -1" from my home directory: 
+total 48
+drwx--x--x 2 dunnow users 4096 Sep  7 19:47 backup
+drwx--x--x 6 dunnow users 4096 Feb 21 10:49 CIS163
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Desktop
+drwxr-xr-x 4 dunnow users 4096 Feb 15 12:19 Documents
+drwxr-xr-x 2 dunnow users 4096 Feb 15 11:03 Downloads
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Music
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Pictures
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Public
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Templates
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Videos
+4) From home directory, directory CIS163 was modified in the last three days.
+5) The output from the "ls -lt" command list all of the files in order of last modification. The most recently modified files start first. The Music directory has not been updated the longest. It was updated on August 31.
+6) Output from command "ls -ltc" lists the files in order of most recently changed file status information/properties. The directory CIS163 had its file status info./props. modified today.
+7) Output from command "ls -ltu" displays the most recent access dates of each file. CIS 163 directory has most recently been accessed.
+8) Selecting "CIS163" directory file, command "stat CIS163" outputs the following:
+  File: ‘CIS163’
+  Size: 4096      	Blocks: 8          IO Block: 4096   directory
+Device: 26h/38d	Inode: 156053623   Links: 6
+Access: (0711/drwx--x--x)  Uid: ( 8435/  dunnow)   Gid: (  500/   users)
+Access: 2017-02-08 11:28:44.742617246 -0500
+Modify: 2017-02-22 08:16:46.554951665 -0500
+Change: 2017-02-22 08:16:46.554951665 -0500
+ Birth: -
+9) Changing the directory to "/lab/web/htdocs/Academics", its contents are displayed by the command "ls -l": All files are directories except for "index.php". "nobody" is the user owner of these directories. The group owner is "511".
+total 24
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 CourseDescriptions
+drwxr-xr-x 2 nobody 511 4096 Jul 21  2009 Honesty
+-rwxr-xr-x 1 nobody 511 1125 Mar 24  2010 index.php
+drwxr-xr-x 2 nobody 511 4096 May 26  2010 Internship
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 OptOut
+drwxr-xr-x 2 nobody 511 4096 Mar 26  2010 SecondAdmit
+10) In the home directory, entering the two commands: "echo Line one > out.txt" and "echo Line two >> out.txt" creates a new file named "out.txt" with the text "Line one\nLine two".
+The link count to this file is 1. After creating a hardlink (alias) of the file by typing "ln out.txt out-alias.txt" the link count changes to 2.
+11) The size and content of the original file and the created alias are the same. The "cat filename" command is used to see the content of a file.
+12) After removing the file "out.txt" using the "rm" command, the link count is changed to 1 for the alias. the content of the alias is the same as the original file.
+13) A "hard link" is just an additional name for an existing file.
+14) Creating a soft link with the command "ln -s out-alias.txt sym-alias.txt", the link count of the two files is both at 1.
+15) The command "ls -l out-alias.txt sym-alias.txt" displays all the information for both files. The symbolic link starts with as 'l' in the filetype string, while the original file starts with '-'. In addition, the file size for the link is smaller.
+16) After deleting the file "out-alias.txt", and then typing "cat sym-alias.txt" an error message resulted: "No such file or directory".
+17) A soft link only directs you to a file, while a hard link is like a copy of a file. A hard link may go to the actual location in memory, so it can still may be accessed after being "deleted".
+18) The command "id" allows you to see which default group you belong to (listed in the middle). I belong the the "users" group for my default.
+19 and 20) Changing the directory to the root Unix directory and entering "ls -l": the user and group owner for all directories, files, and links are "root". The third group of 3 characters lists the permissions for those who arn't part of the group or user of the file. This included myself. I don't have any access to the "root" directory. I can create a new file in the "tmp" directory.
+total 96
+-rw-r--r--     1 root root     0 Dec 20 16:59 1
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 bin -> usr/bin
+dr-xr-xr-x.    4 root root  4096 Feb  1 13:55 boot
+drwxr-xr-x     3 root root  4096 Feb 14 09:26 den_research
+drwxr-xr-x    19 root root  3380 Feb 21 10:51 dev
+drwxr-xr-x.  154 root root 12288 Feb 16 12:52 etc
+drwxr-xr-x  1928 root root 40960 Feb 21 11:07 home
+drwxr-xr-x    11 root root  4096 Jan 30 12:46 lab
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 lib -> usr/lib
+lrwxrwxrwx     1 root root     9 Dec 20 16:58 lib64 -> usr/lib64
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 media
+drwxr-xr-x.    3 root root    16 Nov  5 11:38 mnt
+drwxr-xr-x    14 root root  4096 Jul 26  2016 networking
+drwxr-xr-x.    5 root root    41 Feb  1 14:17 opt
+drwxr-xr-x     3 root root    16 Dec 23 15:33 opt2
+dr-xr-xr-x   295 root root     0 Feb  1 09:01 proc
+drwxr-xr-x     6 root root  4096 Feb 14 09:17 research
+dr-xr-x---.   13 root root  4096 Feb  1 14:06 root
+drwxr-xr-x    39 root root  1380 Feb 21 09:57 run
+lrwxrwxrwx     1 root root     8 Dec 20 16:58 sbin -> usr/sbin
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 srv
+dr-xr-xr-x    13 root root     0 Feb  1 09:01 sys
+drwxrwxrwt.   55 root root  4096 Feb 22 08:48 tmp
+drwxr-xr-x.   14 root root  4096 Dec 20 16:58 usr
+drwxr-xr-x.   20 root root  4096 Feb  1 09:01 var
+21) To make it so nobody can delete any files from the subdirectory "ImportantStuff", enter "chmod a-w ImportantStuff".
+22) The command "chmos u-r,g-r,o-r myFile" is equivalent to "chmod a-r myFile". The command "chmod u+rw,g-rw,o-rw myNotes" is "chmod a+rw myNotes".
+
+
+
+
+
+Owen Dunn
+CIS 163
+Lab 7: File System Advanced
+2/21/17
+
+1) A directory is a location that stores a list of files. A file has information that may be accessed, such as text. The output of "ls-l" shows a directory as 'd' as the leftmost character and a '-' as the leftmost character for a regular file.
+2) Output after entering "date": 10:48:40 EST 2017
+3) Output after "ls -1" from my home directory: 
+total 48
+drwx--x--x 2 dunnow users 4096 Sep  7 19:47 backup
+drwx--x--x 6 dunnow users 4096 Feb 21 10:49 CIS163
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Desktop
+drwxr-xr-x 4 dunnow users 4096 Feb 15 12:19 Documents
+drwxr-xr-x 2 dunnow users 4096 Feb 15 11:03 Downloads
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Music
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Pictures
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Public
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Templates
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Videos
+4) From home directory, directory CIS163 was modified in the last three days.
+5) The output from the "ls -lt" command list all of the files in order of last modification. The most recently modified files start first. The Music directory has not been updated the longest. It was updated on August 31.
+6) Output from command "ls -ltc" lists the files in order of most recently changed file status information/properties. The directory CIS163 had its file status info./props. modified today.
+7) Output from command "ls -ltu" displays the most recent access dates of each file. CIS 163 directory has most recently been accessed.
+8) Selecting "CIS163" directory file, command "stat CIS163" outputs the following:
+  File: ‘CIS163’
+  Size: 4096      	Blocks: 8          IO Block: 4096   directory
+Device: 26h/38d	Inode: 156053623   Links: 6
+Access: (0711/drwx--x--x)  Uid: ( 8435/  dunnow)   Gid: (  500/   users)
+Access: 2017-02-08 11:28:44.742617246 -0500
+Modify: 2017-02-22 08:16:46.554951665 -0500
+Change: 2017-02-22 08:16:46.554951665 -0500
+ Birth: -
+9) Changing the directory to "/lab/web/htdocs/Academics", its contents are displayed by the command "ls -l": All files are directories except for "index.php". "nobody" is the user owner of these directories. The group owner is "511".
+total 24
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 CourseDescriptions
+drwxr-xr-x 2 nobody 511 4096 Jul 21  2009 Honesty
+-rwxr-xr-x 1 nobody 511 1125 Mar 24  2010 index.php
+drwxr-xr-x 2 nobody 511 4096 May 26  2010 Internship
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 OptOut
+drwxr-xr-x 2 nobody 511 4096 Mar 26  2010 SecondAdmit
+10) In the home directory, entering the two commands: "echo Line one > out.txt" and "echo Line two >> out.txt" creates a new file named "out.txt" with the text "Line one\nLine two".
+The link count to this file is 1. After creating a hardlink (alias) of the file by typing "ln out.txt out-alias.txt" the link count changes to 2.
+11) The size and content of the original file and the created alias are the same. The "cat filename" command is used to see the content of a file.
+12) After removing the file "out.txt" using the "rm" command, the link count is changed to 1 for the alias. the content of the alias is the same as the original file.
+13) A "hard link" is just an additional name for an existing file.
+14) Creating a soft link with the command "ln -s out-alias.txt sym-alias.txt", the link count of the two files is both at 1.
+15) The command "ls -l out-alias.txt sym-alias.txt" displays all the information for both files. The symbolic link starts with as 'l' in the filetype string, while the original file starts with '-'. In addition, the file size for the link is smaller.
+16) After deleting the file "out-alias.txt", and then typing "cat sym-alias.txt" an error message resulted: "No such file or directory".
+17) A soft link only directs you to a file, while a hard link is like a copy of a file. A hard link may go to the actual location in memory, so it can still may be accessed after being "deleted".
+18) The command "id" allows you to see which default group you belong to (listed in the middle). I belong the the "users" group for my default.
+19 and 20) Changing the directory to the root Unix directory and entering "ls -l": the user and group owner for all directories, files, and links are "root". The third group of 3 characters lists the permissions for those who arn't part of the group or user of the file. This included myself. I don't have any access to the "root" directory. I can create a new file in the "tmp" directory.
+total 96
+-rw-r--r--     1 root root     0 Dec 20 16:59 1
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 bin -> usr/bin
+dr-xr-xr-x.    4 root root  4096 Feb  1 13:55 boot
+drwxr-xr-x     3 root root  4096 Feb 14 09:26 den_research
+drwxr-xr-x    19 root root  3380 Feb 21 10:51 dev
+drwxr-xr-x.  154 root root 12288 Feb 16 12:52 etc
+drwxr-xr-x  1928 root root 40960 Feb 21 11:07 home
+drwxr-xr-x    11 root root  4096 Jan 30 12:46 lab
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 lib -> usr/lib
+lrwxrwxrwx     1 root root     9 Dec 20 16:58 lib64 -> usr/lib64
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 media
+drwxr-xr-x.    3 root root    16 Nov  5 11:38 mnt
+drwxr-xr-x    14 root root  4096 Jul 26  2016 networking
+drwxr-xr-x.    5 root root    41 Feb  1 14:17 opt
+drwxr-xr-x     3 root root    16 Dec 23 15:33 opt2
+dr-xr-xr-x   295 root root     0 Feb  1 09:01 proc
+drwxr-xr-x     6 root root  4096 Feb 14 09:17 research
+dr-xr-x---.   13 root root  4096 Feb  1 14:06 root
+drwxr-xr-x    39 root root  1380 Feb 21 09:57 run
+lrwxrwxrwx     1 root root     8 Dec 20 16:58 sbin -> usr/sbin
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 srv
+dr-xr-xr-x    13 root root     0 Feb  1 09:01 sys
+drwxrwxrwt.   55 root root  4096 Feb 22 08:48 tmp
+drwxr-xr-x.   14 root root  4096 Dec 20 16:58 usr
+drwxr-xr-x.   20 root root  4096 Feb  1 09:01 var
+21) To make it so nobody can delete any files from the subdirectory "ImportantStuff", enter "chmod a-w ImportantStuff".
+22) The command "chmos u-r,g-r,o-r myFile" is equivalent to "chmod a-r myFile". The command "chmod u+rw,g-rw,o-rw myNotes" is "chmod a+rw myNotes".
+
+
+
+
+
+Owen Dunn
+CIS 163
+Lab 7: File System Advanced
+2/21/17
+
+1) A directory is a location that stores a list of files. A file has information that may be accessed, such as text. The output of "ls-l" shows a directory as 'd' as the leftmost character and a '-' as the leftmost character for a regular file.
+2) Output after entering "date": 10:48:40 EST 2017
+3) Output after "ls -1" from my home directory: 
+total 48
+drwx--x--x 2 dunnow users 4096 Sep  7 19:47 backup
+drwx--x--x 6 dunnow users 4096 Feb 21 10:49 CIS163
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Desktop
+drwxr-xr-x 4 dunnow users 4096 Feb 15 12:19 Documents
+drwxr-xr-x 2 dunnow users 4096 Feb 15 11:03 Downloads
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Music
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Pictures
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Public
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Templates
+drwxr-xr-x 2 dunnow users 4096 Aug 31 19:04 Videos
+4) From home directory, directory CIS163 was modified in the last three days.
+5) The output from the "ls -lt" command list all of the files in order of last modification. The most recently modified files start first. The Music directory has not been updated the longest. It was updated on August 31.
+6) Output from command "ls -ltc" lists the files in order of most recently changed file status information/properties. The directory CIS163 had its file status info./props. modified today.
+7) Output from command "ls -ltu" displays the most recent access dates of each file. CIS 163 directory has most recently been accessed.
+8) Selecting "CIS163" directory file, command "stat CIS163" outputs the following:
+  File: ‘CIS163’
+  Size: 4096      	Blocks: 8          IO Block: 4096   directory
+Device: 26h/38d	Inode: 156053623   Links: 6
+Access: (0711/drwx--x--x)  Uid: ( 8435/  dunnow)   Gid: (  500/   users)
+Access: 2017-02-08 11:28:44.742617246 -0500
+Modify: 2017-02-22 08:16:46.554951665 -0500
+Change: 2017-02-22 08:16:46.554951665 -0500
+ Birth: -
+9) Changing the directory to "/lab/web/htdocs/Academics", its contents are displayed by the command "ls -l": All files are directories except for "index.php". "nobody" is the user owner of these directories. The group owner is "511".
+total 24
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 CourseDescriptions
+drwxr-xr-x 2 nobody 511 4096 Jul 21  2009 Honesty
+-rwxr-xr-x 1 nobody 511 1125 Mar 24  2010 index.php
+drwxr-xr-x 2 nobody 511 4096 May 26  2010 Internship
+drwxr-xr-x 2 nobody 511 4096 Mar 24  2010 OptOut
+drwxr-xr-x 2 nobody 511 4096 Mar 26  2010 SecondAdmit
+10) In the home directory, entering the two commands: "echo Line one > out.txt" and "echo Line two >> out.txt" creates a new file named "out.txt" with the text "Line one\nLine two".
+The link count to this file is 1. After creating a hardlink (alias) of the file by typing "ln out.txt out-alias.txt" the link count changes to 2.
+11) The size and content of the original file and the created alias are the same. The "cat filename" command is used to see the content of a file.
+12) After removing the file "out.txt" using the "rm" command, the link count is changed to 1 for the alias. the content of the alias is the same as the original file.
+13) A "hard link" is just an additional name for an existing file.
+14) Creating a soft link with the command "ln -s out-alias.txt sym-alias.txt", the link count of the two files is both at 1.
+15) The command "ls -l out-alias.txt sym-alias.txt" displays all the information for both files. The symbolic link starts with as 'l' in the filetype string, while the original file starts with '-'. In addition, the file size for the link is smaller.
+16) After deleting the file "out-alias.txt", and then typing "cat sym-alias.txt" an error message resulted: "No such file or directory".
+17) A soft link only directs you to a file, while a hard link is like a copy of a file. A hard link may go to the actual location in memory, so it can still may be accessed after being "deleted".
+18) The command "id" allows you to see which default group you belong to (listed in the middle). I belong the the "users" group for my default.
+19 and 20) Changing the directory to the root Unix directory and entering "ls -l": the user and group owner for all directories, files, and links are "root". The third group of 3 characters lists the permissions for those who arn't part of the group or user of the file. This included myself. I don't have any access to the "root" directory. I can create a new file in the "tmp" directory.
+total 96
+-rw-r--r--     1 root root     0 Dec 20 16:59 1
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 bin -> usr/bin
+dr-xr-xr-x.    4 root root  4096 Feb  1 13:55 boot
+drwxr-xr-x     3 root root  4096 Feb 14 09:26 den_research
+drwxr-xr-x    19 root root  3380 Feb 21 10:51 dev
+drwxr-xr-x.  154 root root 12288 Feb 16 12:52 etc
+drwxr-xr-x  1928 root root 40960 Feb 21 11:07 home
+drwxr-xr-x    11 root root  4096 Jan 30 12:46 lab
+lrwxrwxrwx     1 root root     7 Dec 20 16:58 lib -> usr/lib
+lrwxrwxrwx     1 root root     9 Dec 20 16:58 lib64 -> usr/lib64
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 media
+drwxr-xr-x.    3 root root    16 Nov  5 11:38 mnt
+drwxr-xr-x    14 root root  4096 Jul 26  2016 networking
+drwxr-xr-x.    5 root root    41 Feb  1 14:17 opt
+drwxr-xr-x     3 root root    16 Dec 23 15:33 opt2
+dr-xr-xr-x   295 root root     0 Feb  1 09:01 proc
+drwxr-xr-x     6 root root  4096 Feb 14 09:17 research
+dr-xr-x---.   13 root root  4096 Feb  1 14:06 root
+drwxr-xr-x    39 root root  1380 Feb 21 09:57 run
+lrwxrwxrwx     1 root root     8 Dec 20 16:58 sbin -> usr/sbin
+drwxr-xr-x.    2 root root     6 Nov  5 11:38 srv
+dr-xr-xr-x    13 root root     0 Feb  1 09:01 sys
+drwxrwxrwt.   55 root root  4096 Feb 22 08:48 tmp
+drwxr-xr-x.   14 root root  4096 Dec 20 16:58 usr
+drwxr-xr-x.   20 root root  4096 Feb  1 09:01 var
+21) To make it so nobody can delete any files from the subdirectory "ImportantStuff", enter "chmod a-w ImportantStuff".
+22) The command "chmos u-r,g-r,o-r myFile" is equivalent to "chmod a-r myFile". The command "chmod u+rw,g-rw,o-rw myNotes" is "chmod a+rw myNotes".
+
+
+
+
+
+
+
+
+

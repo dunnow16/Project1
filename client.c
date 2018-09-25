@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <math.h>
 #include "project1.h"  // implementation in .h file
 
 int main(int argc, char** argv){
@@ -89,9 +90,17 @@ int main(int argc, char** argv){
 	printf("file size to write: %d\n", fileSize);
 	clearBuffer(line2);
 
-	int msgSize;
-	while ( msgSize = recvfrom(sockfd, line2, 1024, 0, 
-			(struct sockaddr*)&serveraddr, &len) ) {  // until socket closed
+	int totalPackets = (fileSize / PACKET_DATA_SIZE);
+	double additional = ceil((fileSize % 1024) / 1024.0);
+	totalPackets += (int)additional;
+	printf("Client will receive %d packets of data.\n", totalPackets);
+
+	ssize_t  msgSize;  // how to print value?
+	int i;
+	for(i=0; i< totalPackets; ++i) {  // until all data received
+		// msgSize not correct value? (not getting 1024)
+		msgSize = recvfrom(sockfd, line2, 1024, 0, 
+						   (struct sockaddr*)&serveraddr, &len);
 		outfile = fopen("sentFile", "a");
 		// receive file contents
 		// int n = recvfrom(sockfd, line2, 1024, 0,
@@ -103,9 +112,12 @@ int main(int argc, char** argv){
 		// -wait until get all of file to do this (connect all packets in order?)
 		//fprintf(outfile, "%s", line2);  // write data to file
 		fwrite(line2, 1, msgSize, outfile);  // needed for binary
+		//printf("Received a packet: %d.\n", strlen(line2)+1);
 		clearBuffer(line2);
 		fclose(outfile);
 	}
+	printf("Successfully download a file from server.\n");
+	printf("Closing client.\n");
 
 	//fclose(outfile);
 	close(sockfd);
