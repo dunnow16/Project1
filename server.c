@@ -136,6 +136,7 @@ int main(int argc, char** argv) {
 					clearBuffer(buffer);
 				}
 				printf("Sent %d packets\n", packetsSent);
+				packetsSent = 0;
 
 				// Close the socket when done reading file to allow client to
 				// complete its file transaction.
