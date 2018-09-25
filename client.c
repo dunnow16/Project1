@@ -74,7 +74,7 @@ int main(int argc, char** argv){
 	serveraddr.sin_port = htons(portnumber);
 	serveraddr.sin_addr.s_addr = inet_addr(ipaddr);
 
-	int len = sizeof(serveraddr);
+	socklen_t len = sizeof(serveraddr);
 	sendto(sockfd, line, strlen(line)+1, 0,
 		(struct sockaddr*)&serveraddr, sizeof(serveraddr));
 	clearBuffer(line);
@@ -83,7 +83,7 @@ int main(int argc, char** argv){
 	outfile = fopen("sentFile", "w");  // account for all file types
 
 	// get the file size from the server
-	int bytesRead, fileSize;
+	int /*bytesRead,*/ fileSize;
 	recvfrom(sockfd, line2, 1024, 0, 
         (struct sockaddr*)&serveraddr, &len);
 	fileSize = atoi(line2);

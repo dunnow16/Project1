@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
 	int elementsRead = 0;
 	int packetsSent = 0;
 	while(1){
-		int len = sizeof(clientaddr);
+		socklen_t  len = sizeof(clientaddr);
 		char line[PACKET_DATA_SIZE];
 		char buffer[PACKET_DATA_SIZE];
 		int n = recvfrom(sockfd, line, WINDOW_SIZE * PACKET_DATA_SIZE, 0, 
@@ -94,21 +94,21 @@ int main(int argc, char** argv) {
 				int status = stat(line, &fileStats);
 				if (status == 0) {
 					fileSize = fileStats.st_size;
-					printf("File \"%s\" size: %d bytes\n", line, fileSize);
+					printf("File \"%s\" size: %ld bytes\n", line, fileSize);
 				} else {
 					printf("Failed to read file size.\n");
 					return -1;
 				}
-				sprintf(buffer, "%d", fileSize);
+				sprintf(buffer, "%ld", fileSize);
 				//printf("file size: %s\n", buffer);
 				sendto(sockfd, buffer, strlen(buffer)+1, 0, 
 						(struct sockaddr*)&clientaddr, sizeof(clientaddr));
 
 				// Read and send the file: packet by packet.
-				int totalPackets = ceil((fileSize % PACKET_DATA_SIZE) + 
+				/*int totalPackets = ceil((fileSize % PACKET_DATA_SIZE) + 
 										(fileSize / PACKET_DATA_SIZE));
 				
-				swpState serverState;
+				swpState serverState;*/
 				// Read the first 5 packets.
 				// if (totalPackets >= 5) {
 				// 	fread(buffer, 1, PACKET_DATA_SIZE, fp);
