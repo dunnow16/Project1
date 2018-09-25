@@ -27,8 +27,8 @@
 int main(int argc, char** argv){
 	int portnumber;
 	char ipaddr[100];
-	char line[5000];
-	char line2[5000];
+	char line[1024];
+	char line2[1024];
 	FILE *outfile;
 
 	printf("--------------UDP file transfer client--------------\n");
@@ -63,7 +63,7 @@ int main(int argc, char** argv){
 	}
 	
 	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);  // using UDP
-	if(sockfd < 0){
+	if(sockfd < 0) {
 		printf("Error creating socket\n");
 		return -1;
 	}
@@ -71,25 +71,44 @@ int main(int argc, char** argv){
 	struct sockaddr_in serveraddr;
 	serveraddr.sin_family = AF_INET;
 	serveraddr.sin_port = htons(portnumber);
-	serveraddr.sin_addr.s_addr=inet_addr(ipaddr);
+	serveraddr.sin_addr.s_addr = inet_addr(ipaddr);
 
 	int len = sizeof(serveraddr);
 	sendto(sockfd, line, strlen(line)+1, 0,
 		(struct sockaddr*)&serveraddr, sizeof(serveraddr));
+	clearBuffer(line);
 
-	// receive file contents
-	int n = recvfrom(sockfd, line2, 5000, 0,
-		(struct sockaddr*)&serveraddr, &len);
-	//printf("Got file from server: %s\n", line2);  // should only run for text files
-	
-	// process file contents: clear contents of file with same name or create file
+	// Collect packets from the server until the full file is received.
 	outfile = fopen("sentFile", "w");  // account for all file types
 
-	// Write the buffer to the file.
-	// -wait until get all of file to do this (connect all packets in order?)
-	fprintf(outfile, "%s", line2);  // write data to file
+	// get the file size from the server
+	int bytesRead, fileSize;
+	recvfrom(sockfd, line2, 1024, 0, 
+        (struct sockaddr*)&serveraddr, &len);
+	fileSize = atoi(line2);
+	printf("file size to write: %d\n", fileSize);
+	clearBuffer(line2);
 
-	fclose(outfile);
+	int msgSize;
+	while ( msgSize = recvfrom(sockfd, line2, 1024, 0, 
+			(struct sockaddr*)&serveraddr, &len) ) {  // until socket closed
+		outfile = fopen("sentFile", "a");
+		// receive file contents
+		// int n = recvfrom(sockfd, line2, 1024, 0,
+		// 	(struct sockaddr*)&serveraddr, &len);
+		//printf("Got file from server: %s\n", line2);  // should only run for text files
+		
+		// process file contents: clear contents of file with same name or create file
+		// Write the buffer to the file.
+		// -wait until get all of file to do this (connect all packets in order?)
+		//fprintf(outfile, "%s", line2);  // write data to file
+		fwrite(line2, 1, msgSize, outfile);  // needed for binary
+		clearBuffer(line2);
+		fclose(outfile);
+	}
+
+	//fclose(outfile);
 	close(sockfd);
 	return 0;
 }
+// char pointer and malloc

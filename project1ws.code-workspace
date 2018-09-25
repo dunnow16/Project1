@@ -1,3 +1,9 @@
 {
-	"folders": []
+	"folders": [],
+	"settings": {
+		"files.associations": {
+			"inet.h": "c",
+			"project1.h": "c"
+		}
+	}
 }
