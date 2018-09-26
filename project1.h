@@ -54,7 +54,7 @@ void clearInputBuffer() {
  */
 int isValidPort(int port) {
 	if (port < 0 || port > 65535) {
-		printf("Please enter a valid port number.");
+		printf("Please enter a valid port number.\n");
         return 0;
 	} else {
         return 1;  // valid number
