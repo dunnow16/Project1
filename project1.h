@@ -13,10 +13,12 @@ typedef struct {
 }header; 
 
 typedef struct {
+    //int fileSize;  // size in bytes
     //header hdr; // place here or with the queues?
     uint8_t LAR;  // seqnum of last ack received
     uint8_t LFS;  // last frame sent
     uint8_t NFE;  // seqnum of next frame expected
+    uint8_t pos;  // window position (1 through 2*windowsize)
     struct sendQ_slot {
         header hdr;  // could check in a loop for seq num matching an ack sent
         char msg[PACKET_DATA_SIZE];
@@ -66,22 +68,22 @@ int isValidPort(int port) {
  * This function creates the header for a packet. The packet is from 0-9
  * for the sequence number and 0 or 1 to say if its an acknowledgement.
  */ 
-// char* createHeader(uint8_t seqNum, uint8_t isAck) {
-//     char hdr[3];
-//     if (seqNum > 0 && seqNum < 10) {
-//         strcat(hdr, itoa(seqNum));
-//     } else {
-//         printf("Invalid range for sequence number.\n");
-//         exit(1);
-//     }
-//     if (isAck == 0 || isAck == 1) {
-//         strcat(hdr, itoa(isAck));
-//     } else {
-//         printf("Invalid range for acknowledgement number.\n");
-//         exit(1);
-//     }
-
-//     return hdr;
-// }
+void createHeader(char* hdr, uint8_t seqNum, uint8_t isAck) {
+    char tmp[3];
+    if ( seqNum > 0 && seqNum < 2 * WINDOW_SIZE ) {
+        sprintf(hdr, "%u", seqNum);
+    } else {
+        printf("Invalid range for sequence number.\n");
+        exit(1);
+    }
+    if (isAck == 0 || isAck == 1) {
+        sprintf(tmp, "%u", isAck);
+        strcat(hdr, tmp);
+    } else {
+        printf("Invalid range for acknowledgement number.\n");
+        exit(1);
+    }
+    printf("Created header: %s\n", hdr);
+}
 
 #endif

@@ -31,6 +31,7 @@ int main(int argc, char** argv) {
 	printf("Run: ./exename portnumber\n");
 
 	int portnumber;
+	swpState s;  // holds state values for sliding window protocol
 	// Allow command line input. (save time testing)
 	if (argc == 2) {
 		portnumber = atoi(argv[1]);
@@ -74,7 +75,14 @@ int main(int argc, char** argv) {
 	struct stat fileStats;
 	int elementsRead = 0;
 	int packetsSent = 0;
-	while(1){
+	s.LAR = 0;  // seqnum of last ack received
+	s.LFS = 0;  // seqnum of last frame (packet) sent
+	int send_i; // how many frames sent and not ack yet
+	// char hdr[3];
+	// createHeader(hdr, 1, 1);
+	// printf("%s\n", hdr);
+
+	while(1) {
 		socklen_t  len = sizeof(clientaddr);
 		char line[PACKET_DATA_SIZE];
 		char buffer[PACKET_DATA_SIZE];
@@ -99,16 +107,16 @@ int main(int argc, char** argv) {
 					printf("Failed to read file size.\n");
 					return -1;
 				}
+				// Send file size to client.
 				sprintf(buffer, "%ld", fileSize);
 				//printf("file size: %s\n", buffer);
 				sendto(sockfd, buffer, strlen(buffer)+1, 0, 
 						(struct sockaddr*)&clientaddr, sizeof(clientaddr));
 
 				// Read and send the file: packet by packet.
-				/*int totalPackets = ceil((fileSize % PACKET_DATA_SIZE) + 
-										(fileSize / PACKET_DATA_SIZE));
+				int totalPackets = (int)ceil((double)fileSize / PACKET_DATA_SIZE);
 				
-				swpState serverState;*/
+				swpState serverState;
 				// Read the first 5 packets.
 				// if (totalPackets >= 5) {
 				// 	fread(buffer, 1, PACKET_DATA_SIZE, fp);

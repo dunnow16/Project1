@@ -87,17 +87,14 @@ int main(int argc, char** argv){
 	recvfrom(sockfd, line2, 1024, 0, 
         (struct sockaddr*)&serveraddr, &len);
 	fileSize = atoi(line2);
-	printf("file size to write: %d\n", fileSize);
+	printf("File size to write: %d bytes\n", fileSize);
 	clearBuffer(line2);
 
-	int totalPackets = (fileSize / PACKET_DATA_SIZE);
-	double additional = ceil((fileSize % 1024) / 1024.0);
-	totalPackets += (int)additional;
+	int totalPackets = (int)ceil((double)fileSize / PACKET_DATA_SIZE);
 	printf("Client will receive %d packets of data.\n", totalPackets);
-
 	ssize_t  msgSize;  // how to print value?
 	int i;
-	for(i=0; i< totalPackets; ++i) {  // until all data received
+	for(i=0; i < totalPackets; ++i) {  // until all data received
 		// msgSize not correct value? (not getting 1024)
 		msgSize = recvfrom(sockfd, line2, 1024, 0, 
 						   (struct sockaddr*)&serveraddr, &len);
@@ -123,4 +120,3 @@ int main(int argc, char** argv){
 	close(sockfd);
 	return 0;
 }
-// char pointer and malloc
