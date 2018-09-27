@@ -78,6 +78,7 @@ int main(int argc, char** argv) {
 	swp.LAR = 0;  // seqnum of last ack received
 	swp.LFS = 0;  // seqnum of last frame (packet) sent
 	int send_i; // how many frames sent and not ack yet
+	int server_seqnum = 1;  // start at 1
 	// char hdr[3];
 	// createHeader(hdr, 1, 1);
 	// printf("%s\n", hdr);
@@ -134,7 +135,7 @@ int main(int argc, char** argv) {
 				// }
 
 				// Read and send all the file data 1024 bytes at a time.
-				while ( !transferComplete ) { 
+				while ( !transferComplete ) { // ack received for all packets
 					// if (elementsRead != PACKET_DATA_SIZE) {
 					// 	printf("ERROR! File read error!");
 					// 	return -1;
@@ -142,15 +143,24 @@ int main(int argc, char** argv) {
 					//printf("Read %d bytes from a file.\n", elementsRead);
 
 					if ( !feof(fp) ) {  // if haven't read all of file yet
+						// If read at least one element.
 						if ((elementsRead = fread(buffer, 1, PACKET_DATA_SIZE, fp)) > 0 ) {
-							
+							sendto(sockfd, buffer, elementsRead, 0, 
+								(struct sockaddr*)&clientaddr, sizeof(clientaddr));
+							printf("Sent packet with this data.\n");
+							packetsSent++;
+
+							// add data to the sendQ
+							strcpy(swp.sendQ[send_i].msg, buffer);
+							// add the header (using struct for now)
+							createHeader(&swp.sendQ[send_i].hdr, server_seqnum, 0);  // TODO
+							server_seqnum++;  // move server seqnum up one
+						} else {
+							printf("File completely read at server.\n");
 						}
 					}
 
-					sendto(sockfd, buffer, elementsRead, 0, 
-						(struct sockaddr*)&clientaddr, sizeof(clientaddr));
-					printf("Sent packet with this data.\n");
-					packetsSent++;
+					
 
 					clearBuffer(buffer);
 				}

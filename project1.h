@@ -1,24 +1,26 @@
 #ifndef PROJECT1_H
 #define PROJECT1_H
 
+#include <arpa/inet.h>
+
 #define WINDOW_SIZE 5  // SWS = RWS
 #define PACKET_DATA_SIZE 1024
 
 // Header for packet information. Place file data in here and sent whole struct variable?
 typedef struct {
     uint8_t SeqNum;  // sequence number: 0..10 used, can hold [0, 255]
-    uint8_t AckNum;  // acknowledgement number: 0..10 (maybe bool)
+    //uint8_t AckNum;  // acknowledgement number: 0..10 (maybe bool)
     uint8_t isAck;   // 0 or 1, use seqnum to know which ack it's for
     // packet data here?
 }header; 
 
 typedef struct {
     //int fileSize;  // size in bytes
-    //header hdr; // place here or with the queues?
+    header hdr; // place here or with the queues?
     uint8_t LAR;  // seqnum of last ack received
     uint8_t LFS;  // last frame sent
     uint8_t NFE;  // seqnum of next frame expected
-    uint8_t pos;  // window position (1 through 2*windowsize)
+    uint8_t pos;  // window position (0 through 2*windowsize-1)
     struct sendQ_slot {
         header hdr;  // could check in a loop for seq num matching an ack sent
         char msg[PACKET_DATA_SIZE];
@@ -61,12 +63,35 @@ int isValidPort(int port) {
     }
 }
 
-// This function checks if a sequence number is in the window.
-//int swpInWindow()
+/**
+ * This function checks if a valid ipv4 address was passed.
+ * source:   https://stackoverflow.com/questions/791982
+ * accessed: 9/26/18
+ */
+int isValidIpAddress(char *ipAddress) {
+    struct sockaddr_in sa;
+    int result = inet_pton(AF_INET, ipAddress, &(sa.sin_addr));
+    return result != 0;
+}
+
+/*
+ * This function checks if a sequence number is in the window.
+ * Adapted from the text "Computer Networks: A Systems Approach".
+ * A range of [0,9] is used, but left open in case of changes in
+ * the future.
+ */
+int swpInWindow(uint8_t seqno, uint8_t min, uint8_t max) {
+    uint8_t pos, maxpos;
+    pos = seqno - min;       // pos should be in range [0..Max)
+    maxpos = max - min + 1;  // maxpos is in range [0..Max]
+    return pos < maxpos;
+}
 
 /*
  * This function creates the header for a packet. The packet is from 0-9
  * for the sequence number and 0 or 1 to say if its an acknowledgement.
+ * Two bytes are used to store this information. This header will then be
+ * appended to a packet to provide this information.
  */ 
 void createHeader(char* hdr, uint8_t seqNum, uint8_t isAck) {
     char tmp[3];
@@ -84,6 +109,30 @@ void createHeader(char* hdr, uint8_t seqNum, uint8_t isAck) {
         exit(1);
     }
     printf("Created header: %s\n", hdr);
+}
+
+/*
+ * This function creates the header for a packet. The packet is from 0-9
+ * for the sequence number and 0 or 1 to say if its an acknowledgement.
+ * This header will then be appended to a packet to provide this 
+ * information. A header structure is assigned its values. A packet
+ * structure may use this header structure as one of its fields and
+ * directly sent all of this information with the message.
+ */ 
+void createHeaderStruct(header *hdr, uint8_t seqNum, uint8_t isAck) {
+    char tmp[3];
+    if ( seqNum >= 0 && seqNum < 2 * WINDOW_SIZE ) {
+        hdr->SeqNum = seqNum;
+    } else {
+        printf("Invalid range for sequence number.\n");
+        exit(1);
+    }
+    if (isAck == 0 || isAck == 1) {
+        hdr->isAck = isAck;
+    } else {
+        printf("isAck is true (1) or false (0).\n");
+        exit(1);
+    }
 }
 
 #endif
