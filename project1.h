@@ -16,13 +16,16 @@ typedef struct {
 
 typedef struct {
     //int fileSize;  // size in bytes
-    header hdr; // place here or with the queues?
+    //header hdr; // place here or with the queues?
     int LAR;  // seqnum of last ack received
     int LFS;  // last frame sent
+    int LAF;  // largest acceptable frame
+    int LFR;  // last frame received
     int NFE;  // seqnum of next frame expected
     int pos;  // window position (0 through 2*windowsize-1)
     struct sendQ_slot {
         header hdr;  // could check in a loop for seq num matching an ack sent
+        int isValid;  // used to prevent resending old data
         char msg[PACKET_DATA_SIZE];
     }sendQ[WINDOW_SIZE];
     struct recvQ_slot {

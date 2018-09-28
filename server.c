@@ -149,6 +149,10 @@ int main(int argc, char** argv) {
 				// resend data when necessary (loop over q looking for needed
 				// packet).
 				transferComplete = 0;  // true when last ACK received
+				swp.LFS = 0;
+				swp.LAR = 0;  // initialize to 0 (shouldn't effect logic)
+				int freeQSlot = 0;  // used to keep track of slots in Q that are old data or unwritten
+				int unAckFrames = 0;  // how many unacknowledged frames
 				while ( !transferComplete ) { // ack received for all packets
 					// if (elementsRead != PACKET_DATA_SIZE) {
 					// 	printf("ERROR! File read error!");
@@ -156,27 +160,36 @@ int main(int argc, char** argv) {
 					// }
 					//printf("Read %d bytes from a file.\n", elementsRead);
 
-					if ( !feof(fp) ) {  // if haven't read all of file yet
-						// If read at least one element.
-						if ((elementsRead = fread(buffer, 1, PACKET_DATA_SIZE, fp)) > 0 ) {
-							sendto(sockfd, buffer, elementsRead, 0, 
-								(struct sockaddr*)&clientaddr, sizeof(clientaddr));
-							printf("Sent packet with this data.\n");
-							packetsSent++;  
+					if ( swp.LFS - swp.LAR + 1 <= WINDOW_SIZE ) {  // starts from 0
+						if ( !feof(fp) ) {  // if haven't read all of file yet
+							// If read at least one element.
+							if ((elementsRead = 
+								fread(buffer, 1, PACKET_DATA_SIZE, fp)) > 0 ) {
+								n = sendto(sockfd, buffer, elementsRead, 0, 
+									(struct sockaddr*)&clientaddr, sizeof(clientaddr));
+								printf("Sent packet with this data.\n");
+								packetsSent++;  
+								swp.LFS = server_seqnum;  // last frame sent
+								// add data to the sendQ
+								strcpy(swp.sendQ[freeQSlot].msg, buffer);
+								// add the header (using struct for now)
+								//createHeaderStructure(&swp.sendQ[send_i].hdr, server_seqnum, 0);
+								char hdr[3];
+								createHeader(hdr, server_seqnum, 0);  // TODO
+								// add the header to the sendQ packet
+								swp.sendQ[freeQSlot].hdr.SeqNum = server_seqnum;
+								swp.sendQ[freeQSlot].hdr.isAck = 0;
 
-							// add data to the sendQ
-							strcpy(swp.sendQ[send_i].msg, buffer);
-							// add the header (using struct for now)
-							//createHeaderStructure(&swp.sendQ[send_i].hdr, server_seqnum, 0);
-							char hdr[3];
-							createHeader(hdr, server_seqnum, 0);  // TODO
-							server_seqnum = (server_seqnum + 1) % 10;  // move server seqnum up one
-						} else {
-							printf("File completely read at server.\n");
+								freeQSlot = (freeQSlot + 1) % WINDOW_SIZE;  // cycle about Q as write data
+								server_seqnum = (server_seqnum + 1) % (2 * WINDOW_SIZE);  // move server seqnum up one
+							} else {
+								printf("File completely read at server.\n");
+							}
 						}
 					} 
 
-					
+					// Check for an acknowledgement. TODO
+					// Wait for 5s and then resend oldest packet? or all?
 
 					if ( acksReceived == totalPackets ) {
 						transferComplete = 1;
