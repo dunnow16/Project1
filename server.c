@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 	swp.LAR = 0;  // seqnum of last ack received
 	swp.LFS = 0;  // seqnum of last frame (packet) sent
 	int send_i; // how many frames sent and not ack yet
-	int server_seqnum = 1;  // start at 1
+	int server_seqnum = 0;  // start at 1
 	// char hdr[3];
 	// createHeader(hdr, 1, 1);
 	// printf("%s\n", hdr);
@@ -87,11 +87,13 @@ int main(int argc, char** argv) {
 	swpState serverState;  // has variables to handle the sliding window protocol
 	int transferComplete;  // flag to mark end of file transfer
 	int sizeReceived;      // flag to know if file size received by client
+	int acksReceived;	   // acknowledgements received
 	while(1) {
 		socklen_t  len = sizeof(clientaddr);
 		char line[PACKET_DATA_SIZE];
 		char buffer[PACKET_DATA_SIZE];
-		// Stop and wait for a file request. (timer used to quit waiting after 5s)
+		// Stop and wait for a file request. 
+		// (timer used to quit waiting after 5s)
 		int n = recvfrom(sockfd, line, WINDOW_SIZE * PACKET_DATA_SIZE, 0, 
 			(struct sockaddr*)&clientaddr, &len);
 		if(n == -1) {  // waited 5s
@@ -124,8 +126,10 @@ int main(int argc, char** argv) {
 					sizeReceived = 1;  // TODO, leave 1 for now 
 				}
 				clearBuffer(buffer);
-				// Read and send the file: packet by packet.
-				int totalPackets = (int)ceil((double)fileSize / PACKET_DATA_SIZE);
+				// Read and send the file: packet by packet. 
+				// (how many data packets)
+				int totalPackets = 
+					(int)ceil((double)fileSize / PACKET_DATA_SIZE);
 				
 				// Read the first 5 packets.
 				// if (totalPackets >= 5) {
@@ -144,7 +148,7 @@ int main(int argc, char** argv) {
 				// Add header necessary data to handle error and use queues to
 				// resend data when necessary (loop over q looking for needed
 				// packet).
-				transferComplete = 0;  // reset for each file
+				transferComplete = 0;  // true when last ACK received
 				while ( !transferComplete ) { // ack received for all packets
 					// if (elementsRead != PACKET_DATA_SIZE) {
 					// 	printf("ERROR! File read error!");
@@ -158,7 +162,7 @@ int main(int argc, char** argv) {
 							sendto(sockfd, buffer, elementsRead, 0, 
 								(struct sockaddr*)&clientaddr, sizeof(clientaddr));
 							printf("Sent packet with this data.\n");
-							//packetsSent++;  
+							packetsSent++;  
 
 							// add data to the sendQ
 							strcpy(swp.sendQ[send_i].msg, buffer);
@@ -166,11 +170,20 @@ int main(int argc, char** argv) {
 							//createHeaderStructure(&swp.sendQ[send_i].hdr, server_seqnum, 0);
 							char hdr[3];
 							createHeader(hdr, server_seqnum, 0);  // TODO
-							server_seqnum++;  // move server seqnum up one
+							server_seqnum = (server_seqnum + 1) % 10;  // move server seqnum up one
 						} else {
 							printf("File completely read at server.\n");
 						}
 					} 
+
+					
+
+					if ( acksReceived == totalPackets ) {
+						transferComplete = 1;
+					}
+					if (packetsSent == totalPackets) {  // TODO, leave until swp done
+						transferComplete = 1;
+					}
 
 					clearBuffer(buffer);
 				}

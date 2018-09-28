@@ -8,19 +8,19 @@
 
 // Header for packet information. Place file data in here and sent whole struct variable?
 typedef struct {
-    uint8_t SeqNum;  // sequence number: 0..10 used, can hold [0, 255]
-    //uint8_t AckNum;  // acknowledgement number: 0..10 (maybe bool)
-    uint8_t isAck;   // 0 or 1, use seqnum to know which ack it's for
+    int SeqNum;  // sequence number: 0..10 used, can hold [0, 255]
+    //int AckNum;  // acknowledgement number: 0..10 (maybe bool)
+    int isAck;   // 0 or 1, use seqnum to know which ack it's for
     // packet data here?
 }header; 
 
 typedef struct {
     //int fileSize;  // size in bytes
     header hdr; // place here or with the queues?
-    uint8_t LAR;  // seqnum of last ack received
-    uint8_t LFS;  // last frame sent
-    uint8_t NFE;  // seqnum of next frame expected
-    uint8_t pos;  // window position (0 through 2*windowsize-1)
+    int LAR;  // seqnum of last ack received
+    int LFS;  // last frame sent
+    int NFE;  // seqnum of next frame expected
+    int pos;  // window position (0 through 2*windowsize-1)
     struct sendQ_slot {
         header hdr;  // could check in a loop for seq num matching an ack sent
         char msg[PACKET_DATA_SIZE];
@@ -97,20 +97,20 @@ int swpInWindow(int seqno, int min, int max) {
  */ 
 void createHeader(char* hdr, int seqNum, int isAck) {
     char tmp[3];
-    if ( seqNum > 0 && seqNum < 2 * WINDOW_SIZE ) {
-        sprintf(hdr, "%u", seqNum);
+    if ( seqNum >= 0 && seqNum < 2 * WINDOW_SIZE ) {
+        sprintf(hdr, "%d", seqNum);
     } else {
         printf("Invalid range for sequence number.\n");
         exit(1);
     }
     if (isAck == 0 || isAck == 1) {
-        sprintf(tmp, "%u", isAck);
+        sprintf(tmp, "%d", isAck);
         strcat(hdr, tmp);
     } else {
         printf("Invalid range for acknowledgement number.\n");
         exit(1);
     }
-    printf("Created header: %s\n", hdr);
+    printf("Created header: %s\n", hdr);  // TEST
 }
 
 /*
@@ -121,7 +121,7 @@ void createHeader(char* hdr, int seqNum, int isAck) {
  * structure may use this header structure as one of its fields and
  * directly sent all of this information with the message.
  */ 
-void createHeaderStruct(header *hdr, uint8_t seqNum, uint8_t isAck) {
+void createHeaderStruct(header *hdr, int seqNum, int isAck) {
     char tmp[3];
     if ( seqNum >= 0 && seqNum < 2 * WINDOW_SIZE ) {
         hdr->SeqNum = seqNum;
@@ -136,5 +136,10 @@ void createHeaderStruct(header *hdr, uint8_t seqNum, uint8_t isAck) {
         exit(1);
     }
 }
+
+/*
+ * This function is used to check for curruption of a packet.
+ */
+// int checksum(char *)
 
 #endif
