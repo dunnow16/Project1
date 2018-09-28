@@ -32,6 +32,8 @@ typedef struct {
     }recvQ[WINDOW_SIZE];
 }swpState;
 
+typedef enum { false, true } bool;
+
 /**
  * This function sets all of a string's characters to the terminator to
  * prevent old data from effecting the next use of the string.
@@ -80,8 +82,8 @@ int isValidIpAddress(char *ipAddress) {
  * A range of [0,9] is used, but left open in case of changes in
  * the future.
  */
-int swpInWindow(uint8_t seqno, uint8_t min, uint8_t max) {
-    uint8_t pos, maxpos;
+int swpInWindow(int seqno, int min, int max) {
+    int pos, maxpos;
     pos = seqno - min;       // pos should be in range [0..Max)
     maxpos = max - min + 1;  // maxpos is in range [0..Max]
     return pos < maxpos;
@@ -93,7 +95,7 @@ int swpInWindow(uint8_t seqno, uint8_t min, uint8_t max) {
  * Two bytes are used to store this information. This header will then be
  * appended to a packet to provide this information.
  */ 
-void createHeader(char* hdr, uint8_t seqNum, uint8_t isAck) {
+void createHeader(char* hdr, int seqNum, int isAck) {
     char tmp[3];
     if ( seqNum > 0 && seqNum < 2 * WINDOW_SIZE ) {
         sprintf(hdr, "%u", seqNum);

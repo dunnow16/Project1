@@ -42,20 +42,23 @@ int main(int argc, char** argv){
 		// Read the port number.
 		portnumber = atoi(argv[1]);
 		if (!isValidPort(portnumber)) {
+			printf("Invalid port number.\n");
 			return -1;
 		}
 		printf("Using port: %d\n", portnumber);
 
 		// Read the ip address.
 		strcpy(ipaddr, argv[2]);
-// add error test for ipaddr?
-
+		// error test for ipaddr
+		if ( !isValidIpAddress(ipaddr) ) {
+			printf("Invalid ipv4 address.\n");
+			return -1;
+		}
 		printf("Using ip address: %s\n", ipaddr);
 
 		// Read the file name.
 		strcpy(line, argv[3]);
-// add error test for filename?
-
+		// add error test for filename?
 		printf("Asking for file: %s\n", line);
 	} else {
 		printf("Invalid command line input.\n");

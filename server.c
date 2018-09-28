@@ -75,6 +75,7 @@ int main(int argc, char** argv) {
 	struct stat fileStats;
 	int elementsRead = 0;
 	int packetsSent = 0;
+	int n;  	  // wait timing variable
 	swp.LAR = 0;  // seqnum of last ack received
 	swp.LFS = 0;  // seqnum of last frame (packet) sent
 	int send_i; // how many frames sent and not ack yet
@@ -84,7 +85,8 @@ int main(int argc, char** argv) {
 	// printf("%s\n", hdr);
 
 	swpState serverState;  // has variables to handle the sliding window protocol
-	int transferComplete = 0;  // flag to mark end of file transfer
+	int transferComplete;  // flag to mark end of file transfer
+	int sizeReceived;      // flag to know if file size received by client
 	while(1) {
 		socklen_t  len = sizeof(clientaddr);
 		char line[PACKET_DATA_SIZE];
@@ -92,10 +94,10 @@ int main(int argc, char** argv) {
 		// Stop and wait for a file request. (timer used to quit waiting after 5s)
 		int n = recvfrom(sockfd, line, WINDOW_SIZE * PACKET_DATA_SIZE, 0, 
 			(struct sockaddr*)&clientaddr, &len);
-		if(n == -1){
-			printf("time out on receive\n");
+		if(n == -1) {  // waited 5s
+			printf("Time out on receive (5 seconds)\n");
 		}
-		else{
+		else {
 			printf("Got file request from client: %s\n", line);
 			if((fp = fopen(line, "r")) == NULL){  // returns file pointer (fp)
 				printf("File does not exist\n");
@@ -113,11 +115,15 @@ int main(int argc, char** argv) {
 				// Send file size to client.
 				sprintf(buffer, "%ld", fileSize);
 				//printf("file size: %s\n", buffer);
-				sendto(sockfd, buffer, strlen(buffer)+1, 0, 
-						(struct sockaddr*)&clientaddr, sizeof(clientaddr));
-				
-				// TODO Wait for an ack for the file size msg, resend if missed. 	
-
+				sizeReceived = 0;
+				while ( !sizeReceived ) {
+					n = sendto(sockfd, buffer, strlen(buffer)+1, 0, 
+							(struct sockaddr*)&clientaddr, sizeof(clientaddr));
+					
+					// TODO Wait for an ack for the file size msg, resend if missed.
+					sizeReceived = 1;  // TODO, leave 1 for now 
+				}
+				clearBuffer(buffer);
 				// Read and send the file: packet by packet.
 				int totalPackets = (int)ceil((double)fileSize / PACKET_DATA_SIZE);
 				
@@ -135,6 +141,10 @@ int main(int argc, char** argv) {
 				// }
 
 				// Read and send all the file data 1024 bytes at a time.
+				// Add header necessary data to handle error and use queues to
+				// resend data when necessary (loop over q looking for needed
+				// packet).
+				transferComplete = 0;  // reset for each file
 				while ( !transferComplete ) { // ack received for all packets
 					// if (elementsRead != PACKET_DATA_SIZE) {
 					// 	printf("ERROR! File read error!");
@@ -148,23 +158,23 @@ int main(int argc, char** argv) {
 							sendto(sockfd, buffer, elementsRead, 0, 
 								(struct sockaddr*)&clientaddr, sizeof(clientaddr));
 							printf("Sent packet with this data.\n");
-							packetsSent++;
+							//packetsSent++;  
 
 							// add data to the sendQ
 							strcpy(swp.sendQ[send_i].msg, buffer);
 							// add the header (using struct for now)
-							createHeader(&swp.sendQ[send_i].hdr, server_seqnum, 0);  // TODO
+							//createHeaderStructure(&swp.sendQ[send_i].hdr, server_seqnum, 0);
+							char hdr[3];
+							createHeader(hdr, server_seqnum, 0);  // TODO
 							server_seqnum++;  // move server seqnum up one
 						} else {
 							printf("File completely read at server.\n");
 						}
-					}
-
-					
+					} 
 
 					clearBuffer(buffer);
 				}
-				printf("Sent %d packets\n", packetsSent);
+				//printf("Sent %d packets\n", packetsSent);
 				packetsSent = 0;
 
 				// Close the socket when done reading file to allow client to
