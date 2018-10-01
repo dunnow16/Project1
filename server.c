@@ -60,7 +60,6 @@ int main(int argc, char** argv) {
 		sizeof(timeout));
 
 	struct sockaddr_in serveraddr, clientaddr;
-
 	serveraddr.sin_family = AF_INET;
 	serveraddr.sin_port = htons(portnumber);
 	serveraddr.sin_addr.s_addr = INADDR_ANY;

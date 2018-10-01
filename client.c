@@ -72,35 +72,53 @@ int main(int argc, char** argv){
 		return -1;
 	}
 
+	struct timeval timeout;
+	timeout.tv_sec = 5;   // seconds
+	timeout.tv_usec = 0;  // micro sec
+
 	struct sockaddr_in serveraddr;
 	serveraddr.sin_family = AF_INET;
 	serveraddr.sin_port = htons(portnumber);
 	serveraddr.sin_addr.s_addr = inet_addr(ipaddr);
 
+	// Request the file. 
+	// TODO Resend request until confirmed.
 	socklen_t len = sizeof(serveraddr);
 	sendto(sockfd, line, strlen(line)+1, 0,
 		(struct sockaddr*)&serveraddr, sizeof(serveraddr));
 	clearBuffer(line);
 
-	// Collect packets from the server until the full file is received.
-	outfile = fopen("sentFile", "w");  // account for all file types
-
 	// get the file size from the server
+	// TODO Try until get this value.
 	int /*bytesRead,*/ fileSize;
 	recvfrom(sockfd, line2, 1024, 0, 
         (struct sockaddr*)&serveraddr, &len);
 	fileSize = atoi(line2);
 	printf("File size to write: %d bytes\n", fileSize);
 	clearBuffer(line2);
-
 	int totalPackets = (int)ceil((double)fileSize / PACKET_DATA_SIZE);
 	printf("Client will receive %d packets of data.\n", totalPackets);
-	ssize_t  msgSize;  // how to print value?
+	
+	int transferComplete;
+	int sizeReceived;
+	ssize_t msgSize;  // how to print value?
 	int i;
-	for(i=0; i < totalPackets; ++i) {  // until all data received
-		// msgSize not correct value? (not getting 1024)
-		msgSize = recvfrom(sockfd, line2, 1024, 0, 
-						   (struct sockaddr*)&serveraddr, &len);
+	swpState swp;
+	swp.LFR = 0;
+	swp.LAF = WINDOW_SIZE;
+	uint8_t client_seqnum = 1;
+	// Collect packets from the server until the full file is received.
+	outfile = fopen("sentFile", "w");  // account for all file types
+	while( !transferComplete ) {  // until all data received
+		// See if can accept a packet.
+		if ( swp.LAF - swp.LFR < WINDOW_SIZE ) {
+			// msgSize not correct value? (not getting 1024)
+			msgSize = recvfrom(sockfd, line2, 1024, 0, 
+				(struct sockaddr*)&serveraddr, &len);
+			
+
+		}
+		
 		outfile = fopen("sentFile", "a");
 		// receive file contents
 		// int n = recvfrom(sockfd, line2, 1024, 0,

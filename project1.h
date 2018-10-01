@@ -155,7 +155,7 @@ void createHeaderStruct(header *hdr, uint8_t seqNum/*, uint8_t isAck*/) {
  * This function appends the header to the front of a packet.
  */
 void createPacket(char* packet, char* hdr, char* data) {
-    strcpy(packet, hdr);
+    strcpy(packet, hdr);  // change to memcpy
     strcat(packet, data);
 }
 
