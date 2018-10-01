@@ -5,37 +5,39 @@
 
 #define WINDOW_SIZE 5  // SWS = RWS
 #define PACKET_DATA_SIZE 1024
+#define H_SIZE 2
 
 // Header for packet information. Place file data in here and sent whole struct variable?
 typedef struct {
-    int SeqNum;  // sequence number: 0..10 used, can hold [0, 255]
+    uint8_t SeqNum;  // sequence number: 0..10 used, can hold [0, 255]
     //int AckNum;  // acknowledgement number: 0..10 (maybe bool)
-    int isAck;   // 0 or 1, use seqnum to know which ack it's for
+    uint8_t isAck;   // 0 or 1, use seqnum to know which ack it's for
     // packet data here?
 }header; 
 
 typedef struct {
     //int fileSize;  // size in bytes
     //header hdr; // place here or with the queues?
-    int LAR;  // seqnum of last ack received
-    int LFS;  // last frame sent
-    int LAF;  // largest acceptable frame
-    int LFR;  // last frame received
-    int NFE;  // seqnum of next frame expected
-    int pos;  // window position (0 through 2*windowsize-1)
+    uint8_t LAR;  // seqnum of last ack received
+    uint8_t LFS;  // last frame sent
+    uint8_t LAF;  // largest acceptable frame
+    uint8_t LFR;  // last frame received
+    uint8_t NFE;  // seqnum of next frame expected
+    uint8_t pos;  // window position (0 through 2*windowsize-1)
     struct sendQ_slot {
         header hdr;  // could check in a loop for seq num matching an ack sent
-        int isValid;  // used to prevent resending old data
+        uint8_t isValid;  // used to prevent resending old data
         char msg[PACKET_DATA_SIZE];
     }sendQ[WINDOW_SIZE];
     struct recvQ_slot {
         header hdr;
-        int wasReceived;  // is msg valid?
+        uint8_t wasReceived;  // is msg valid?
         char msg[PACKET_DATA_SIZE];
     }recvQ[WINDOW_SIZE];
 }swpState;
 
 typedef enum { false, true } bool;
+
 
 /**
  * This function sets all of a string's characters to the terminator to
@@ -44,6 +46,7 @@ typedef enum { false, true } bool;
 void clearBuffer(char* b) {
     memset(b, '\0', strlen(b));
 }
+
 
 /**
  * This function clears the input buffer of all characters. If this
@@ -55,6 +58,7 @@ void clearInputBuffer() {
     while (getchar() != '\n')
         ;  // clear the buffer
 }
+
 
 /** 
  * This function checks if the port number provided is valid.
@@ -68,6 +72,7 @@ int isValidPort(int port) {
     }
 }
 
+
 /**
  * This function checks if a valid ipv4 address was passed.
  * source:   https://stackoverflow.com/questions/791982
@@ -79,18 +84,20 @@ int isValidIpAddress(char *ipAddress) {
     return result != 0;
 }
 
+
 /*
  * This function checks if a sequence number is in the window.
  * Adapted from the text "Computer Networks: A Systems Approach".
  * A range of [0,9] is used, but left open in case of changes in
  * the future.
  */
-int swpInWindow(int seqno, int min, int max) {
-    int pos, maxpos;
+uint8_t swpInWindow(uint8_t seqno, uint8_t min, uint8_t max) {
+    uint8_t pos, maxpos;
     pos = seqno - min;       // pos should be in range [0..Max)
     maxpos = max - min + 1;  // maxpos is in range [0..Max]
     return pos < maxpos;
 }
+
 
 /*
  * This function creates the header for a packet. The packet is from 0-9
@@ -98,23 +105,24 @@ int swpInWindow(int seqno, int min, int max) {
  * Two bytes are used to store this information. This header will then be
  * appended to a packet to provide this information.
  */ 
-void createHeader(char* hdr, int seqNum, int isAck) {
+void createHeader(char* hdr, uint8_t seqNum, uint8_t isAck) {
     char tmp[3];
-    if ( seqNum >= 0 && seqNum < 2 * WINDOW_SIZE ) {
-        sprintf(hdr, "%d", seqNum);
+    if ( seqNum >= 0 && seqNum < 256 ) {
+        sprintf(hdr, "%u", seqNum);
     } else {
-        printf("Invalid range for sequence number.\n");
+        printf("Invalid range for sequence number (>= 256).\n");
         exit(1);
     }
     if (isAck == 0 || isAck == 1) {
-        sprintf(tmp, "%d", isAck);
+        sprintf(tmp, "%u", isAck);
         strcat(hdr, tmp);
     } else {
         printf("Invalid range for acknowledgement number.\n");
         exit(1);
     }
-    printf("Created header: %s\n", hdr);  // TEST
+    printf("Created header: %c%c\n", hdr[0], hdr[1]);  // TEST
 }
+
 
 /*
  * This function creates the header for a packet. The packet is from 0-9
@@ -124,7 +132,7 @@ void createHeader(char* hdr, int seqNum, int isAck) {
  * structure may use this header structure as one of its fields and
  * directly sent all of this information with the message.
  */ 
-void createHeaderStruct(header *hdr, int seqNum, int isAck) {
+void createHeaderStruct(header *hdr, uint8_t seqNum, uint8_t isAck) {
     char tmp[3];
     if ( seqNum >= 0 && seqNum < 2 * WINDOW_SIZE ) {
         hdr->SeqNum = seqNum;
@@ -139,6 +147,16 @@ void createHeaderStruct(header *hdr, int seqNum, int isAck) {
         exit(1);
     }
 }
+
+
+/**
+ * This function appends the header to the front of a packet.
+ */
+void createPacket(char* packet, char* hdr, char* data) {
+    strcpy(packet, hdr);
+    strcat(packet, data);
+}
+
 
 /*
  * This function is used to check for curruption of a packet.

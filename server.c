@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
 	printf("Run: ./exename portnumber\n");
 
 	int portnumber;
-	swpState swp;  // holds state values for sliding window protocol
+	swpState swp;  // has variables to handle the sliding window protocol
 	// Allow command line input. (save time testing)
 	if (argc == 2) {
 		portnumber = atoi(argv[1]);
@@ -79,12 +79,11 @@ int main(int argc, char** argv) {
 	swp.LAR = 0;  // seqnum of last ack received
 	swp.LFS = 0;  // seqnum of last frame (packet) sent
 	int send_i; // how many frames sent and not ack yet
-	int server_seqnum = 0;  // start at 1
+	uint8_t server_seqnum = 0;  // start at 0, (max of 256) assumed unlimited range (doesn't loop back)
 	// char hdr[3];
 	// createHeader(hdr, 1, 1);
 	// printf("%s\n", hdr);
 
-	swpState serverState;  // has variables to handle the sliding window protocol
 	int transferComplete;  // flag to mark end of file transfer
 	int sizeReceived;      // flag to know if file size received by client
 	int acksReceived;	   // acknowledgements received
@@ -97,7 +96,7 @@ int main(int argc, char** argv) {
 		int n = recvfrom(sockfd, line, WINDOW_SIZE * PACKET_DATA_SIZE, 0, 
 			(struct sockaddr*)&clientaddr, &len);
 		if(n == -1) {  // waited 5s
-			printf("Time out on receive (5 seconds)\n");
+			printf("Time out on receive (5 seconds) waiting for file request.\n");
 		}
 		else {
 			printf("Got file request from client: %s\n", line);
@@ -150,46 +149,77 @@ int main(int argc, char** argv) {
 				// packet).
 				transferComplete = 0;  // true when last ACK received
 				swp.LFS = 0;
-				swp.LAR = 0;  // initialize to 0 (shouldn't effect logic)
-				int freeQSlot = 0;  // used to keep track of slots in Q that are old data or unwritten
-				int unAckFrames = 0;  // how many unacknowledged frames
+				swp.LAR = 0;  // initialize to 0 (shouldn't effect logic?)
+				uint8_t freeQSlot = 0;  // used to keep track of slots in Q that are old data or unwritten
+				uint8_t unAckFrames = 0;  // how many unacknowledged frames
+				char* packet;  // contains header and data
 				while ( !transferComplete ) { // ack received for all packets
 					// if (elementsRead != PACKET_DATA_SIZE) {
 					// 	printf("ERROR! File read error!");
 					// 	return -1;
 					// }
 					//printf("Read %d bytes from a file.\n", elementsRead);
-
+					// TODO how would I check this with seqnum ...,8,9,0,1,... ?
+					// - I'm using an only increasing seqnum for now...
 					if ( swp.LFS - swp.LAR + 1 <= WINDOW_SIZE ) {  // starts from 0
 						if ( !feof(fp) ) {  // if haven't read all of file yet
 							// If read at least one element.
 							if ((elementsRead = 
 								fread(buffer, 1, PACKET_DATA_SIZE, fp)) > 0 ) {
-								n = sendto(sockfd, buffer, elementsRead, 0, 
-									(struct sockaddr*)&clientaddr, sizeof(clientaddr));
-								printf("Sent packet with this data.\n");
-								packetsSent++;  
+								
+								packetsSent++;  // TODO remove once complete logic done
 								swp.LFS = server_seqnum;  // last frame sent
 								// add data to the sendQ
 								strcpy(swp.sendQ[freeQSlot].msg, buffer);
-								// add the header (using struct for now)
-								//createHeaderStructure(&swp.sendQ[send_i].hdr, server_seqnum, 0);
-								char hdr[3];
-								createHeader(hdr, server_seqnum, 0);  // TODO
 								// add the header to the sendQ packet
 								swp.sendQ[freeQSlot].hdr.SeqNum = server_seqnum;
 								swp.sendQ[freeQSlot].hdr.isAck = 0;
 
+								// create a header of 2 char bits to append the front of data packet
+								//createHeaderStructure(&swp.sendQ[send_i].hdr, server_seqnum, 0);
+								char hdr[2];  // has no null terminator!
+								createHeader(hdr, server_seqnum, 0);  // TODO
+	
+								// TODO Create packet with header and data. Send it.
+								// TODO add checksum char(s)?
+								packet = (char*)malloc(sizeof(char)*(elementsRead + H_SIZE));
+								createPacket(packet, hdr, buffer);
+
+								n = sendto(sockfd, packet, elementsRead+H_SIZE, 0, 
+									(struct sockaddr*)&clientaddr, sizeof(clientaddr));
+								printf("Sent packet %u with data and header.\n", server_seqnum);
+
+								// should only need 5 spaces in Q, otherwise outside of window
 								freeQSlot = (freeQSlot + 1) % WINDOW_SIZE;  // cycle about Q as write data
-								server_seqnum = (server_seqnum + 1) % (2 * WINDOW_SIZE);  // move server seqnum up one
+								//server_seqnum = (server_seqnum + 1) % (2 * WINDOW_SIZE);  // move server seqnum up one
+								server_seqnum++;  // assumed unlimited range
+								free(packet);   // allow to be a dif size for last packet (if >1024 bytes)
 							} else {
 								printf("File completely read at server.\n");
+								printf("Waiting for last acknowledgements from client.\n");
 							}
 						}
 					} 
 
 					// Check for an acknowledgement. TODO
 					// Wait for 5s and then resend oldest packet? or all?
+					// use same socket?
+					packet = (char*)malloc(sizeof(char)*(PACKET_DATA_SIZE + H_SIZE));
+					n = recvfrom(sockfd, packet, WINDOW_SIZE * PACKET_DATA_SIZE, 0, 
+						(struct sockaddr*)&clientaddr, &len);
+					if(n == -1) {  // waited 5s
+						printf("Time out on receive (5 seconds) waiting for ACK.\n");
+					} else if ( 1 ) {  // validate packet contains data first TODO 
+						if ( (packet[1] - 48) == 1 ) {  // is an ACK
+							char* packetNumString;
+							sprintf(packetNumString, "%u", packet[0]);
+							swp.LAR = atoi(packetNumString);
+
+							free(packet);
+						}
+					} else {
+						printf("ERROR: packet has no data to read.\n");
+					}
 
 					if ( acksReceived == totalPackets ) {
 						transferComplete = 1;
@@ -201,7 +231,8 @@ int main(int argc, char** argv) {
 					clearBuffer(buffer);
 				}
 				//printf("Sent %d packets\n", packetsSent);
-				packetsSent = 0;
+				packetsSent = 0;  // TODO remove once not needed
+				server_seqnum = 0;  // ready for next file
 
 				// Close the socket when done reading file to allow client to
 				// complete its file transaction.
