@@ -5,13 +5,13 @@
 
 #define WINDOW_SIZE 5  // SWS = RWS
 #define PACKET_DATA_SIZE 1024
-#define H_SIZE 2
+#define H_SIZE 1
 
 // Header for packet information. Place file data in here and sent whole struct variable?
 typedef struct {
     uint8_t SeqNum;  // sequence number: 0..10 used, can hold [0, 255]
     //int AckNum;  // acknowledgement number: 0..10 (maybe bool)
-    uint8_t isAck;   // 0 or 1, use seqnum to know which ack it's for
+    //uint8_t isAck;   // 0 or 1, use seqnum to know which ack it's for
     // packet data here?
 }header; 
 
@@ -26,7 +26,8 @@ typedef struct {
     uint8_t pos;  // window position (0 through 2*windowsize-1)
     struct sendQ_slot {
         header hdr;  // could check in a loop for seq num matching an ack sent
-        uint8_t isValid;  // used to prevent resending old data
+        uint8_t ackRecv;  // used to prevent resending old data
+        uint8_t isValid;  // if data has been assigned
         char msg[PACKET_DATA_SIZE];
     }sendQ[WINDOW_SIZE];
     struct recvQ_slot {
@@ -105,22 +106,22 @@ uint8_t swpInWindow(uint8_t seqno, uint8_t min, uint8_t max) {
  * Two bytes are used to store this information. This header will then be
  * appended to a packet to provide this information.
  */ 
-void createHeader(char* hdr, uint8_t seqNum, uint8_t isAck) {
-    char tmp[3];
+void createHeader(char* hdr, uint8_t seqNum/*, uint8_t isAck*/) {
+    char tmp[H_SIZE+1];
     if ( seqNum >= 0 && seqNum < 256 ) {
         sprintf(hdr, "%u", seqNum);
     } else {
         printf("Invalid range for sequence number (>= 256).\n");
         exit(1);
     }
-    if (isAck == 0 || isAck == 1) {
-        sprintf(tmp, "%u", isAck);
-        strcat(hdr, tmp);
-    } else {
-        printf("Invalid range for acknowledgement number.\n");
-        exit(1);
-    }
-    printf("Created header: %c%c\n", hdr[0], hdr[1]);  // TEST
+    // if (isAck == 0 || isAck == 1) {
+    //     sprintf(tmp, "%u", isAck);
+    //     strcat(hdr, tmp);
+    // } else {
+    //     printf("Invalid range for acknowledgement number.\n");
+    //     exit(1);
+    // }
+    printf("Created header: %u\n", (unsigned char)hdr[0]);  // TEST
 }
 
 
@@ -132,7 +133,7 @@ void createHeader(char* hdr, uint8_t seqNum, uint8_t isAck) {
  * structure may use this header structure as one of its fields and
  * directly sent all of this information with the message.
  */ 
-void createHeaderStruct(header *hdr, uint8_t seqNum, uint8_t isAck) {
+void createHeaderStruct(header *hdr, uint8_t seqNum/*, uint8_t isAck*/) {
     char tmp[3];
     if ( seqNum >= 0 && seqNum < 2 * WINDOW_SIZE ) {
         hdr->SeqNum = seqNum;
@@ -140,12 +141,12 @@ void createHeaderStruct(header *hdr, uint8_t seqNum, uint8_t isAck) {
         printf("Invalid range for sequence number.\n");
         exit(1);
     }
-    if (isAck == 0 || isAck == 1) {
-        hdr->isAck = isAck;
-    } else {
-        printf("isAck is true (1) or false (0).\n");
-        exit(1);
-    }
+    // if (isAck == 0 || isAck == 1) {
+    //     hdr->isAck = isAck;
+    // } else {
+    //     printf("isAck is true (1) or false (0).\n");
+    //     exit(1);
+    // }
 }
 
 

@@ -9,11 +9,14 @@
 #include "project1.h"  // implementation in .h file
 
 int main(int argc, char** argv){
-    uint8_t a =  '1';
+    char a =  '1';
     char packet[2];
-    packet[0] = 255; 
+    packet[0] = (char)255;
+    printf("%c\n", packet[0]);
+    printf("%u\n", (unsigned char)packet[0]);
+    //sprintf(packet[0], "u", ); 
 
-    printf("%u\n", (unsigned char)a);
+    printf("%u\n", atoi(&a));
     printf("%u\n", (unsigned char)packet[0]);
 
     if ( (packet[1] - 48) == 1 ) {  // is an ACK

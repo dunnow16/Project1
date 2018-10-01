@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 	swp.LAR = 0;  // seqnum of last ack received
 	swp.LFS = 0;  // seqnum of last frame (packet) sent
 	int send_i; // how many frames sent and not ack yet
-	uint8_t server_seqnum = 0;  // start at 0, (max of 256) assumed unlimited range (doesn't loop back)
+	uint8_t server_seqnum = 1;  // start at 1, (max of 255) assumed unlimited range (doesn't loop back)
 	// char hdr[3];
 	// createHeader(hdr, 1, 1);
 	// printf("%s\n", hdr);
@@ -148,11 +148,12 @@ int main(int argc, char** argv) {
 				// resend data when necessary (loop over q looking for needed
 				// packet).
 				transferComplete = 0;  // true when last ACK received
-				swp.LFS = 0;
+				swp.LFS = 1;
 				swp.LAR = 0;  // initialize to 0 (shouldn't effect logic?)
 				uint8_t freeQSlot = 0;  // used to keep track of slots in Q that are old data or unwritten
 				uint8_t unAckFrames = 0;  // how many unacknowledged frames
 				char* packet;  // contains header and data
+				char hdr[H_SIZE];  // has no null terminator!
 				while ( !transferComplete ) { // ack received for all packets
 					// if (elementsRead != PACKET_DATA_SIZE) {
 					// 	printf("ERROR! File read error!");
@@ -161,7 +162,7 @@ int main(int argc, char** argv) {
 					//printf("Read %d bytes from a file.\n", elementsRead);
 					// TODO how would I check this with seqnum ...,8,9,0,1,... ?
 					// - I'm using an only increasing seqnum for now...
-					if ( swp.LFS - swp.LAR + 1 <= WINDOW_SIZE ) {  // starts from 0
+					if ( swp.LFS - swp.LAR < WINDOW_SIZE ) {  // maintain window size
 						if ( !feof(fp) ) {  // if haven't read all of file yet
 							// If read at least one element.
 							if ((elementsRead = 
@@ -173,12 +174,13 @@ int main(int argc, char** argv) {
 								strcpy(swp.sendQ[freeQSlot].msg, buffer);
 								// add the header to the sendQ packet
 								swp.sendQ[freeQSlot].hdr.SeqNum = server_seqnum;
-								swp.sendQ[freeQSlot].hdr.isAck = 0;
+								swp.sendQ[freeQSlot].isValid = 1;  // not empty data
+								//swp.sendQ[freeQSlot].hdr.isAck = 0;
 
 								// create a header of 2 char bits to append the front of data packet
 								//createHeaderStructure(&swp.sendQ[send_i].hdr, server_seqnum, 0);
-								char hdr[2];  // has no null terminator!
-								createHeader(hdr, server_seqnum, 0);  // TODO
+								
+								createHeader(hdr, server_seqnum);  // TODO
 	
 								// TODO Create packet with header and data. Send it.
 								// TODO add checksum char(s)?
@@ -211,10 +213,9 @@ int main(int argc, char** argv) {
 						printf("Time out on receive (5 seconds) waiting for ACK.\n");
 					} else if ( 1 ) {  // validate packet contains data first TODO 
 						if ( (packet[1] - 48) == 1 ) {  // is an ACK
-							char* packetNumString;
-							sprintf(packetNumString, "%u", packet[0]);
-							swp.LAR = atoi(packetNumString);
-
+							swp.LAR = (unsigned char)packet[0];  // TODO works?
+							acksReceived++;
+							printf("Got acknowledgement for packet %d.\n", swp.LAR);
 							free(packet);
 						}
 					} else {
@@ -223,11 +224,39 @@ int main(int argc, char** argv) {
 
 					if ( acksReceived == totalPackets ) {
 						transferComplete = 1;
+						break;
 					}
-					if (packetsSent == totalPackets) {  // TODO, leave until swp done
+					if ( packetsSent == totalPackets ) {  // TODO, leave until swp done
 						transferComplete = 1;
+						break;
 					}
 
+					// TODO Resend packet(s) not received.
+					int lowest_i, i;  // find lowest packet seqNum to send
+					int atLeastOneUnsent = 0;
+					for(i = 0; i < WINDOW_SIZE; ++i) {
+						if ( swp.sendQ[i].isValid && !swp.sendQ[i].ackRecv ) {
+							if ( atLeastOneUnsent ) {
+								if ( swp.sendQ[i].hdr.SeqNum < swp.sendQ[lowest_i].hdr.SeqNum ) {
+									lowest_i = i;
+								}			
+							} else {
+								lowest_i = i;  // save index of lowest packet
+								atLeastOneUnsent = 1;
+							}
+						}
+					}
+					if (atLeastOneUnsent) {
+						createHeader(hdr, swp.sendQ[lowest_i].hdr.SeqNum);
+						packet = (char*)malloc(sizeof(char)*(PACKET_DATA_SIZE + H_SIZE));
+						createPacket(packet, hdr, swp.sendQ[lowest_i].msg);
+						n = sendto(sockfd, packet, elementsRead+H_SIZE, 0, 
+							(struct sockaddr*)&clientaddr, sizeof(clientaddr));
+						printf("Sent packet %u with data and header.\n", server_seqnum); 
+						free(packet);
+						atLeastOneUnsent = 0;
+						lowest_i = 0;
+					}
 					clearBuffer(buffer);
 				}
 				//printf("Sent %d packets\n", packetsSent);
