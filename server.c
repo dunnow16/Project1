@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
 	int n;  	  // wait timing variable
 	swp.LAR = 0;  // seqnum of last ack received
 	swp.LFS = 0;  // seqnum of last frame (packet) sent
-	int send_i; // how many frames sent and not ack yet
+	//int send_i; // how many frames sent and not ack yet
 	uint8_t server_seqnum = 1;  // start at 1, (max of 255) assumed unlimited range (doesn't loop back)
 	// char hdr[3];
 	// createHeader(hdr, 1, 1);
@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
 		char buffer[PACKET_DATA_SIZE];
 		// Stop and wait for a file request. 
 		// (timer used to quit waiting after 5s)
-		int n = recvfrom(sockfd, line, WINDOW_SIZE * PACKET_DATA_SIZE, 0, 
+		n = recvfrom(sockfd, line, WINDOW_SIZE * PACKET_DATA_SIZE, 0, 
 			(struct sockaddr*)&clientaddr, &len);
 		if(n == -1) {  // waited 5s
 			printf("Time out on receive (5 seconds) waiting for file request.\n");
@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
 				swp.LFS = 1;
 				swp.LAR = 0;  // initialize to 0 (shouldn't effect logic?)
 				uint8_t freeQSlot = 0;  // used to keep track of slots in Q that are old data or unwritten
-				uint8_t unAckFrames = 0;  // how many unacknowledged frames
+				//uint8_t unAckFrames = 0;  // how many unacknowledged frames
 				char* packet;  // contains header and data
 				char hdr[H_SIZE];  // has no null terminator!
 				while ( !transferComplete ) { // ack received for all packets
@@ -203,6 +203,12 @@ int main(int argc, char** argv) {
 						}
 					} 
 
+					/*
+					TODO replace strcpy:
+					char buffer[345];
+					set header (bit 0)
+					memcpy(after header addr, data, elementsRead)
+					*/
 					// Check for an acknowledgement. TODO
 					// Wait for 5s and then resend oldest packet? or all?
 					// use same socket?
@@ -212,12 +218,10 @@ int main(int argc, char** argv) {
 					if(n == -1) {  // waited 5s
 						printf("Time out on receive (5 seconds) waiting for ACK.\n");
 					} else if ( 1 ) {  // validate packet contains data first TODO 
-						if ( (packet[1] - 48) == 1 ) {  // is an ACK
 							swp.LAR = (unsigned char)packet[0];  // TODO works?
 							acksReceived++;
 							printf("Got acknowledgement for packet %d.\n", swp.LAR);
 							free(packet);
-						}
 					} else {
 						printf("ERROR: packet has no data to read.\n");
 					}
@@ -252,7 +256,8 @@ int main(int argc, char** argv) {
 						createPacket(packet, hdr, swp.sendQ[lowest_i].msg);
 						n = sendto(sockfd, packet, elementsRead+H_SIZE, 0, 
 							(struct sockaddr*)&clientaddr, sizeof(clientaddr));
-						printf("Sent packet %u with data and header.\n", server_seqnum); 
+						printf("Resent packet %u with data and header.\n", 
+							swp.sendQ[lowest_i].hdr.SeqNum); 
 						free(packet);
 						atLeastOneUnsent = 0;
 						lowest_i = 0;

@@ -107,9 +107,10 @@ uint8_t swpInWindow(uint8_t seqno, uint8_t min, uint8_t max) {
  * appended to a packet to provide this information.
  */ 
 void createHeader(char* hdr, uint8_t seqNum/*, uint8_t isAck*/) {
-    char tmp[H_SIZE+1];
+    //char tmp[H_SIZE+1];
     if ( seqNum >= 0 && seqNum < 256 ) {
-        sprintf(hdr, "%u", seqNum);
+        //sprintf(hdr, "%u", seqNum);
+        hdr[0] = seqNum;
     } else {
         printf("Invalid range for sequence number (>= 256).\n");
         exit(1);
@@ -121,7 +122,7 @@ void createHeader(char* hdr, uint8_t seqNum/*, uint8_t isAck*/) {
     //     printf("Invalid range for acknowledgement number.\n");
     //     exit(1);
     // }
-    printf("Created header: %u\n", (unsigned char)hdr[0]);  // TEST
+    printf("Created header: %u\n", (unsigned int)(hdr[0]));  // TEST
 }
 
 
@@ -134,7 +135,7 @@ void createHeader(char* hdr, uint8_t seqNum/*, uint8_t isAck*/) {
  * directly sent all of this information with the message.
  */ 
 void createHeaderStruct(header *hdr, uint8_t seqNum/*, uint8_t isAck*/) {
-    char tmp[3];
+    //char tmp[3];
     if ( seqNum >= 0 && seqNum < 2 * WINDOW_SIZE ) {
         hdr->SeqNum = seqNum;
     } else {
