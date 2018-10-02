@@ -8,8 +8,8 @@
  * When started, the server asks for a port number. The server then listens
  * for connections on that port. The sliding window protocol is implemented
  * to allow reliable file transfer with UDP. A window size of 5 is used.
- * 
- * Run: ./exename portnumber 
+ *
+ * Run: ./exename portnumber
  */
 
 #include <sys/socket.h>
@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
 		printf("Run: ./exename portnumber \n");
 	}
 
-	FILE *fp;	
+	FILE *fp;
 	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sockfd < 0) {
 		printf("There was an error creating the socket.\n");
@@ -55,8 +55,11 @@ int main(int argc, char** argv) {
 	timeout.tv_usec = 0;  // micro sec
 
 	//set options sockfd, option1, option2
-	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, 
-		sizeof(timeout));
+	if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
+		sizeof(timeout)) < 0){
+			printf("Setockopt Error.\n");
+			return 1;
+		};
 
 	struct sockaddr_in serveraddr, clientaddr;
 
@@ -78,17 +81,17 @@ int main(int argc, char** argv) {
 		socklen_t  len = sizeof(clientaddr);
 		char line[PACKET_DATA_SIZE];
 		char buffer[PACKET_DATA_SIZE];
-		int n = recvfrom(sockfd, line, WINDOW_SIZE * PACKET_DATA_SIZE, 0, 
+		int n = recvfrom(sockfd, line, WINDOW_SIZE * PACKET_DATA_SIZE, 0,
 			(struct sockaddr*)&clientaddr, &len);
 		if(n == -1){
 			printf("time out on receive\n");
 		}
 		else{
 			printf("Got file request from client: %s\n", line);
-		
+
 			if((fp = fopen(line, "r")) == NULL){  // returns file pointer (fp)
 				printf("File does not exist\n");
-			}	
+			}
 			else{
 				// Get the file size.
 				int status = stat(line, &fileStats);
@@ -101,13 +104,16 @@ int main(int argc, char** argv) {
 				}
 				sprintf(buffer, "%ld", fileSize);
 				//printf("file size: %s\n", buffer);
-				sendto(sockfd, buffer, strlen(buffer)+1, 0, 
-						(struct sockaddr*)&clientaddr, sizeof(clientaddr));
+				if (sendto(sockfd, buffer, strlen(buffer)+1, 0,
+						(struct sockaddr*)&clientaddr, sizeof(clientaddr)) < 0) {
+							printf("Error sending filesize.\n");
+							return 1;
+						};
 
 				// Read and send the file: packet by packet.
-				/*int totalPackets = ceil((fileSize % PACKET_DATA_SIZE) + 
+				/*int totalPackets = ceil((fileSize % PACKET_DATA_SIZE) +
 										(fileSize / PACKET_DATA_SIZE));
-				
+
 				swpState serverState;*/
 				// Read the first 5 packets.
 				// if (totalPackets >= 5) {
@@ -122,17 +128,61 @@ int main(int argc, char** argv) {
 
 				// }
 
+				int counter = 1;
+				int windowCounter = 1;
+				swpState packet[5];
 				// Read and send all the file data 1024 bytes at a time.
-				while ( (elementsRead = fread(buffer, 1, PACKET_DATA_SIZE, fp)) > 0 ) { 
+				while ( (elementsRead = fread(buffer, 1, PACKET_DATA_SIZE, fp)) > 0 ) {
 					// if (elementsRead != PACKET_DATA_SIZE) {
 					// 	printf("ERROR! File read error!");
 					// 	return -1;
 					// }
 					printf("Read %d bytes from a file.\n", elementsRead);
-					sendto(sockfd, buffer, elementsRead, 0, 
-						(struct sockaddr*)&clientaddr, sizeof(clientaddr));
+
+					packet[counter - 1].hdr.SeqNum = counter;
+					packet[counter - 1].wasReceived = 0;
+					strncpy(packet[counter - 1].msg, buffer, elementsRead);
+
+					char packetBuffer[PACKET_DATA_SIZE + 5];
+					packetBuffer[0] = counter;
+					char check[4];
+					sprintf(check, "%x",checkSum(buffer, PACKET_DATA_SIZE));
+					memcpy(&packetBuffer[1], &check, 4);
+					printf("Checksum: %s\n", check);
+					memcpy(&packetBuffer[5], buffer, elementsRead);
+
+					if (sendto(sockfd, packetBuffer, elementsRead + 5, 0,
+						(struct sockaddr*)&clientaddr, sizeof(clientaddr)) < 0){
+							printf("Error sending packet.\n");
+							return 1;
+						};
 					printf("Sent packet with this data.\n");
 					packetsSent++;
+
+					char h[2];
+
+					int r = recvfrom(sockfd, h, 1, 0,
+						(struct sockaddr*)&clientaddr, &len);
+
+					if (r == -1) {
+						return -1;
+					}
+
+					printf("Acknowledgement: %s\n", h);
+					packet[atoi(h)].wasReceived = 1;
+					if (packet[windowCounter].wasReceived == 1) {
+						windowCounter++;
+						int prevWindowCounter = windowCounter - 1;
+						if (windowCounter > 5) {
+							windowCounter = 1;
+						}
+						printf("Incrementing Window %d -> %d\n",
+						prevWindowCounter, windowCounter);
+					}
+					counter++;
+					if (counter > 5) {
+						counter = 1;
+					}
 
 					clearBuffer(buffer);
 				}
@@ -142,7 +192,7 @@ int main(int argc, char** argv) {
 				// Close the socket when done reading file to allow client to
 				// complete its file transaction.
 				//close(sockfd);
-			
+
 				//printf("%s\n", buffer);  //  should only run for text files
 
 				// Append a header to the front of the file? (first x bits)
@@ -150,7 +200,7 @@ int main(int argc, char** argv) {
 				fclose(fp);  // close the file
 				// create a new socket to allow another client
 				//sockfd = createUDPSocket(portnumber, serveraddr);
-			}	
+			}
 		}
 	}
 
@@ -167,7 +217,7 @@ int createUDPSocket(int portnumber, struct sockaddr_in serveraddr) {
 	timeout.tv_sec = 5;   // seconds
 	timeout.tv_usec = 0;  // micro sec
 
-	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, 
+	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
 			   sizeof(timeout));
 	serveraddr.sin_family = AF_INET;
 	serveraddr.sin_port = htons(portnumber);

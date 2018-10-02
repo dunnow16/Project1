@@ -3,7 +3,7 @@
  * Programming Project 1: Reliable File Transfer over UDP
  * Cis 457
  * Fall 2018
- * 
+ *
  * Client:
  * When started, the client asks for the IP address and a port number.
  * If valid data is given, the client will then use this information
@@ -11,7 +11,7 @@
  * request from the server (or file path). If the file is found in the
  * server it will be sent to the client over several packets with data
  * size of 1024 bytes each.
- * 
+ *
  * Run: ./exename portnumber ipaddress filename
  */
 
@@ -29,7 +29,7 @@ int main(int argc, char** argv){
 	int portnumber;
 	char ipaddr[100];
 	char line[1024];
-	char line2[1024];
+	char line2[1029];
 	FILE *outfile;
 
 	printf("--------------UDP file transfer client--------------\n");
@@ -48,6 +48,9 @@ int main(int argc, char** argv){
 
 		// Read the ip address.
 		strcpy(ipaddr, argv[2]);
+//		if(!(AF_INET,ipaddr,&(sa,sin_addr))){
+//		return -1;
+//		}
 // add error test for ipaddr?
 
 		printf("Using ip address: %s\n", ipaddr);
@@ -62,7 +65,7 @@ int main(int argc, char** argv){
 		printf("Run: ./exename portnumber ipaddress filename\n");
 		return -1;
 	}
-	
+
 	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);  // using UDP
 	if(sockfd < 0) {
 		printf("Error creating socket\n");
@@ -75,8 +78,11 @@ int main(int argc, char** argv){
 	serveraddr.sin_addr.s_addr = inet_addr(ipaddr);
 
 	socklen_t len = sizeof(serveraddr);
-	sendto(sockfd, line, strlen(line)+1, 0,
-		(struct sockaddr*)&serveraddr, sizeof(serveraddr));
+	if ((sendto(sockfd, line, strlen(line)+1, 0,
+		(struct sockaddr*)&serveraddr, sizeof(serveraddr))) < 0) {
+			printf("Error sending request.\n");
+			return 1;
+		};
 	clearBuffer(line);
 
 	// Collect packets from the server until the full file is received.
@@ -84,7 +90,7 @@ int main(int argc, char** argv){
 
 	// get the file size from the server
 	int /*bytesRead,*/ fileSize;
-	recvfrom(sockfd, line2, 1024, 0, 
+	recvfrom(sockfd, line2, 1024, 0,
         (struct sockaddr*)&serveraddr, &len);
 	fileSize = atoi(line2);
 	printf("file size to write: %d\n", fileSize);
@@ -99,19 +105,45 @@ int main(int argc, char** argv){
 	int i;
 	for(i=0; i< totalPackets; ++i) {  // until all data received
 		// msgSize not correct value? (not getting 1024)
-		msgSize = recvfrom(sockfd, line2, 1024, 0, 
+		msgSize = recvfrom(sockfd, line2, 1029, 0,
 						   (struct sockaddr*)&serveraddr, &len);
+		if (msgSize == -1) {
+			printf("Error recieving.\n");
+			return 1;
+		}
 		outfile = fopen("sentFile", "a");
+
+
 		// receive file contents
 		// int n = recvfrom(sockfd, line2, 1024, 0,
 		// 	(struct sockaddr*)&serveraddr, &len);
 		//printf("Got file from server: %s\n", line2);  // should only run for text files
-		
+
+		char line3[1024];
+		memcpy(line3, line2 + 5, 1024);
+		char header[2];
+		sprintf(header, "%d", line2[0]);
+		printf("header: %s\n", header);
+
+		if ((sendto(sockfd, header, 1, 0,
+			(struct sockaddr*)&serveraddr, sizeof(serveraddr))) < 0) {
+				printf("Error sending request.\n");
+				return 1;
+			};
+
+		char check1[5];
+		char check2[5];
+		sprintf(check1, "%x",checkSum(line3, PACKET_DATA_SIZE));
+		memcpy(check2, line2 + 1, 4);
+		if (strcmp(check1, check2) != 0) {
+			printf("Checksum do not match.\n");
+		}
+
 		// process file contents: clear contents of file with same name or create file
 		// Write the buffer to the file.
 		// -wait until get all of file to do this (connect all packets in order?)
 		//fprintf(outfile, "%s", line2);  // write data to file
-		fwrite(line2, 1, msgSize, outfile);  // needed for binary
+		fwrite(line3, 1, msgSize-5, outfile);  // needed for binary
 		//printf("Received a packet: %d.\n", strlen(line2)+1);
 		clearBuffer(line2);
 		fclose(outfile);
