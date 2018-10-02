@@ -111,7 +111,7 @@ void createHeader(char* hdr, uint8_t seqNum/*, uint8_t isAck*/) {
     //char tmp[H_SIZE+1];
     if ( seqNum >= 0 && seqNum < 256 ) {
         //sprintf(hdr, "%u", seqNum);
-        hdr[0] = seqNum;
+        hdr[0] = (uint8_t)seqNum;
     } else {
         printf("Invalid range for sequence number (>= 256).\n");
         exit(1);
@@ -156,8 +156,8 @@ void createHeaderStruct(header *hdr, uint8_t seqNum/*, uint8_t isAck*/) {
  * This function appends the header to the front of a packet.
  */
 void createPacket(char* packet, char* hdr, char* data) {
-    strcpy(packet, hdr);  // change to memcpy
-    strcat(packet, data);
+    memcpy(packet, hdr, H_SIZE);  // change to memcpy
+    memcpy((packet+1), data, PACKET_DATA_SIZE);
 }
 
 

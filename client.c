@@ -96,9 +96,9 @@ int main(int argc, char** argv){
 	int /*bytesRead,*/ fileSize;
 	n = -1;
 	while (n == -1) {
-		n = recvfrom(sockfd, packet, 1024, 0, 
+		n = recvfrom(sockfd, packet, PACKET_DATA_SIZE+H_SIZE, 0, 
 			(struct sockaddr*)&serveraddr, &len);
-		if(n==-1){
+		if(n == -1){
 			printf("Did not receive file size in time. Retrying.\n");
 		}
 	}
@@ -125,27 +125,29 @@ int main(int argc, char** argv){
 	// Collect packets from the server until the full file is received.
 	outfile = fopen("sentFile", "w");  // account for all file types
 	while( !transferComplete ) {  // until all data received
+		n = recvfrom(sockfd, packet, PACKET_DATA_SIZE+H_SIZE, 0, 
+			(struct sockaddr*)&serveraddr, &len);
+		if(n==-1) {
+			printf("Error: didn't receive a packet in time.\n");
+			continue;
+		}
+		printf("Header value: %u\n", (uint8_t)packet[0]);  //TEST 
+		printf("n = %d\n", n);  //test
 		// See if can accept a packet.
-		if ( swp.LAF - swp.LFR <= WINDOW_SIZE ) {
-			// msgSize not correct value? (not getting 1024)
-			n = recvfrom(sockfd, packet, 1024, 0, 
-				(struct sockaddr*)&serveraddr, &len);
-			if(n==-1) {
-				printf("Error: didn't receive a packet in time.\n");
-				continue;
-			} 
-			if ( (unsigned char)packet[0] <= (unsigned char)swp.LFR ||
-				 (unsigned char)packet[0] > (unsigned char)swp.LAF ) {
+		if ( swp.LAF - swp.LFR <= WINDOW_SIZE && n > 0 ) {
+			printf("LFR: %u, LAF: %u, NFE: %u\n", swp.LFR, swp.LAF, swp.NFE);
+			if ( packet[0] <= swp.LFR ||
+				 packet[0] > swp.LAF ) {
 				printf("Packet %u outside of frame. Not accepted.\n", 
-					(unsigned char)packet[0]);
-
-				if((unsigned char)packet[0] <= (unsigned char)swp.LFR) {
+					(uint8_t)packet[0]);
+				
+				if((uint8_t)packet[0] <= (uint8_t)swp.LFR) {
 					sendAck = 1;
 				}
 			} else {  // packet is within the window
 				// First check if it's the NFE. Append data to file if so.
 				// Don't add to Q if so, as not needed later.
-				if((unsigned char)packet[0] == (unsigned char)swp.NFE) {  // next frame in sequence?
+				if(packet[0] == swp.NFE) {  // next frame in sequence?
 					outfile = fopen("sentFile", "a");
 					fwrite(&packet[1], 1, sizeof(packet) - 1, outfile);  // needed for binary
 					//printf("Received a packet: %d.\n", strlen(packet)+1);
@@ -153,10 +155,10 @@ int main(int argc, char** argv){
 					fclose(outfile);
 					packetsWritten++;
 					printf("Appended packet %u to file.\n", 
-						(unsigned char)packet[0]);
+						(uint8_t)packet[0]);
 					swp.NFE++;
-					swp.LFR = (unsigned char)packet[0];
-					swp.LAF = (unsigned char)swp.LFR + WINDOW_SIZE;
+					swp.LFR = (uint8_t)packet[0];
+					swp.LAF = (uint8_t)swp.LFR + WINDOW_SIZE;
 					
 					// Send the ACK. A packet with only the seqnum character.
 					sendAck = 1;
@@ -164,21 +166,21 @@ int main(int argc, char** argv){
 					// Check if packet already in Q.
 					for(i=0; i<WINDOW_SIZE; ++i) {
 						if(swp.recvQ[i].isValid) {
-							if((unsigned char)packet[0] == swp.recvQ[i].hdr.SeqNum) {
+							if((uint8_t)packet[0] == swp.recvQ[i].hdr.SeqNum) {
 								inQ = 1;
 								break;
 							}
 						}
 					}
 					if(inQ) {
-						printf("Repeated packet %u discarded,\n", 
-							(unsigned char)packet[0]);
+						printf("Repeated packet %u discarded.\n", 
+							(uint8_t)packet[0]);
 					} else {
 						// add data to Q
-						swp.recvQ[freeQSlot].hdr.SeqNum = (unsigned char)packet[0];
+						swp.recvQ[freeQSlot].hdr.SeqNum = (uint8_t)packet[0];
 						swp.recvQ[freeQSlot].isValid = 1;
 						printf("Packet %u in window and added to queue.\n", 
-							(unsigned char)packet[0]);
+							(uint8_t)packet[0]);
 						freeQSlot = (freeQSlot + 1) % WINDOW_SIZE;
 					}
 
@@ -200,7 +202,7 @@ int main(int argc, char** argv){
 					}
 
 					if (sendAck) {
-						hdr[0] = swp.LFR;
+						hdr[0] = (uint8_t)swp.LFR;
 						hdr[1] = '\0';
 						n = sendto(sockfd, hdr, strlen(line)+1, 0,
 							(struct sockaddr*)&serveraddr, sizeof(serveraddr));
@@ -223,7 +225,7 @@ int main(int argc, char** argv){
 			sendAck = 0;
 		}
 	}
-	printf("Successfully download a file from server.\n");
+	printf("Successfully downloaded a file from server.\n");
 	printf("Closing client.\n");
 
 	close(sockfd);
