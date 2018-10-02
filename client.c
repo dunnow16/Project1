@@ -23,6 +23,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <math.h>
+#include <limits.h>
 #include "project1.h"  // implementation in .h file
 
 int main(int argc, char** argv){
@@ -86,23 +87,44 @@ int main(int argc, char** argv){
 
 	// Request the file. 
 	// TODO Resend request until confirmed.
+	int fileRequestDone = 0;
 	socklen_t len = sizeof(serveraddr);
-	n = sendto(sockfd, line, strlen(line)+1, 0,
-		(struct sockaddr*)&serveraddr, sizeof(serveraddr));
-	clearBuffer(line);
-
-	// get the file size from the server
-	// TODO Try until get this value.
 	int /*bytesRead,*/ fileSize;
-	n = -1;
-	while (n == -1) {
-		n = recvfrom(sockfd, packet, PACKET_DATA_SIZE+H_SIZE, 0, 
-			(struct sockaddr*)&serveraddr, &len);
-		if(n == -1) {
-			printf("Did not receive file size in time. Retrying.\n");
+	char filehdr[1];
+	while (!fileRequestDone) {
+		n = sendto(sockfd, line, strlen(line)+1, 0,
+			(struct sockaddr*)&serveraddr, sizeof(serveraddr));
+		if (n == -1) {
+			printf("Error: file name not sent to server.\n");
+		} else {
+			// get the file size from the server
+			// TODO Try until get this value.
+			n = recvfrom(sockfd, packet, PACKET_DATA_SIZE+H_SIZE, 0, 
+				(struct sockaddr*)&serveraddr, &len);
+			if(n == -1) {
+				printf("Did not receive file size in time. Retrying.\n");
+			} else {
+				fileSize = atoi(packet);
+				if (fileSize > 0 && fileSize < INT_MAX) {
+					filehdr[0] = 'a';
+					printf("Sending ack for file data.\n");
+					n = sendto(sockfd, &filehdr[0], 1, 0,
+						(struct sockaddr*)&serveraddr, sizeof(serveraddr));
+					printf("File data attempted ACK sent: n = %d, data[0] = %u\n", 
+						n, filehdr[0]);
+					if (n == -1) {
+						printf("File data ACK for packet %u not sent.\n", 
+							filehdr[0]);
+					} else {
+						printf("ACK for packet %u sent.\n", filehdr[0]);
+						fileRequestDone = 1;
+					}
+				}
+			}
 		}
 	}
-	fileSize = atoi(packet);
+	printf("File request accepted and file size received.\n");
+	clearBuffer(line);
 	printf("File size to write: %d bytes\n", fileSize);
 	clearBuffer(packet);
 	int totalPackets = (int)ceil((double)fileSize / PACKET_DATA_SIZE);

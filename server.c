@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
 	long fileSize = 0;
 	struct stat fileStats;
 	int elementsRead = 0;
-	int packetsSent = 0;
+	//int packetsSent = 0;
 	int n;  	  // wait timing variable
 	swp.LAR = 0;  // seqnum of last ack received
 	swp.LFS = 0;  // seqnum of last frame (packet) sent
@@ -84,6 +84,7 @@ int main(int argc, char** argv) {
 	// printf("%s\n", hdr);
 
 	int transferComplete;  // flag to mark end of file transfer
+	int sizeSent;
 	int sizeReceived;      // flag to know if file size received by client
 	int acksReceived;	   // acknowledgements received
 	while(1) {
@@ -116,14 +117,29 @@ int main(int argc, char** argv) {
 				sprintf(buffer, "%ld", fileSize);
 				//printf("file size: %s\n", buffer);
 				sizeReceived = 0;
-				while ( !sizeReceived ) {
+				while ( !sizeSent ) {
 					n = sendto(sockfd, buffer, strlen(buffer)+1, 0, 
 						(struct sockaddr*)&clientaddr, sizeof(clientaddr));
-					
-					// TODO Wait for an ack for the file size msg, resend if missed.
-					sizeReceived = 1;  // TODO, leave 1 for now 
+					if(n == -1) {
+						printf("Error: failed to send file size.\n");
+					} else {
+						// TODO Wait for an ack for the file size msg, resend if missed.
+						sizeSent = 1;  // TODO, leave 1 for now 
+					}
 				}
 				clearBuffer(buffer);
+				clearBuffer(line);
+				// Get ack for file size.
+				n = recvfrom(sockfd, buffer, H_SIZE+1, 0, 
+						(struct sockaddr*)&clientaddr, &len);
+				if (n == -1) {
+					printf("Ack for file size not received.\n");
+				} else if (buffer[0] == 'a') {
+					sizeReceived = 1;
+				}
+				clearBuffer(buffer);
+				//if (!sizeReceived) continue;  // try again
+
 				// Read and send the file: packet by packet. 
 				// (how many data packets)
 				int totalPackets = 
@@ -147,7 +163,7 @@ int main(int argc, char** argv) {
 							if ((elementsRead = 
 								fread(buffer, 1, PACKET_DATA_SIZE, fp)) > 0 ) {
 								printf("Read %d bytes from a file.\n", elementsRead);
-								packetsSent++;  // TODO remove once complete logic done
+								//packetsSent++;  // TODO remove once complete logic done
 								swp.LFS = (uint8_t)server_seqnum;  // last frame sent
 								// add data to the sendQ
 								strcpy(swp.sendQ[freeQSlot].msg, buffer);
@@ -256,10 +272,21 @@ int main(int argc, char** argv) {
 					clearBuffer(buffer);
 				}
 				//printf("Sent %d packets\n", packetsSent);
-				packetsSent = 0;  // TODO remove once not needed
+				//packetsSent = 0;  // TODO remove once not needed
+				acksReceived = 0;
 				server_seqnum = 1;  // ready for next file
+				sizeSent = 0;
+				sizeReceived = 0;
+				elementsRead = 0;
+				fileSize = 0;
+				swp.LAR = 0;  // seqnum of last ack received
+				swp.LFS = 0;  // seqnum of last frame (packet) sent
+				server_seqnum = 1;
+				free(packet);
 
 				fclose(fp);  // close the file
+				printf("File sent: exiting server.\n");
+				return 0;
 			}	
 		}
 	}
