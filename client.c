@@ -29,7 +29,7 @@ int main(int argc, char** argv){
 	int portnumber;
 	char ipaddr[100];
 	char line[1024];
-	char line2[1024];
+	char packet[PACKET_DATA_SIZE+H_SIZE];
 	FILE *outfile;
 
 	printf("--------------UDP file transfer client--------------\n");
@@ -91,48 +91,99 @@ int main(int argc, char** argv){
 	// get the file size from the server
 	// TODO Try until get this value.
 	int /*bytesRead,*/ fileSize;
-	recvfrom(sockfd, line2, 1024, 0, 
+	recvfrom(sockfd, packet, 1024, 0, 
         (struct sockaddr*)&serveraddr, &len);
-	fileSize = atoi(line2);
+	fileSize = atoi(packet);
 	printf("File size to write: %d bytes\n", fileSize);
-	clearBuffer(line2);
+	clearBuffer(packet);
 	int totalPackets = (int)ceil((double)fileSize / PACKET_DATA_SIZE);
 	printf("Client will receive %d packets of data.\n", totalPackets);
 	
 	int transferComplete;
 	int sizeReceived;
 	ssize_t msgSize;  // how to print value?
-	int i;
+	int i; 
+	int packetsWritten = 0;  // keep going until all packets written
 	swpState swp;
 	swp.LFR = 0;
 	swp.LAF = WINDOW_SIZE;
-	uint8_t client_seqnum = 1;
+	swp.NFE = 1;
+	//uint8_t client_seqnum = 1;  // use seqnum from server packets only?
+	uint8_t freeQSlot = 0;
+	int inQ = 0;  // if packet already in the Q
 	// Collect packets from the server until the full file is received.
 	outfile = fopen("sentFile", "w");  // account for all file types
 	while( !transferComplete ) {  // until all data received
 		// See if can accept a packet.
 		if ( swp.LAF - swp.LFR < WINDOW_SIZE ) {
 			// msgSize not correct value? (not getting 1024)
-			msgSize = recvfrom(sockfd, line2, 1024, 0, 
+			msgSize = recvfrom(sockfd, packet, 1024, 0, 
 				(struct sockaddr*)&serveraddr, &len);
-			
+			if ( (unsigned int)packet[0] <= swp.LFR ||
+				 (unsigned int)packet[0] > swp.LAF ) {
+				printf("Packet %u outside of frame. Not accepted.\n", 
+					(unsigned int)packet[0]);
+			} else {  // packet is within the window
+				// First check if it's the NFE. Append data to file if so.
+				// Don't add to Q if so, as not needed later.
+				if((unsigned int)packet[0] == swp.NFE) {  // next frame in sequence?
+					outfile = fopen("sentFile", "a");
+					fwrite(packet[1], 1, msgSize - 1, outfile);  // needed for binary
+					//printf("Received a packet: %d.\n", strlen(packet)+1);
+					clearBuffer(packet);
+					fclose(outfile);
+					packetsWritten++;
+					printf("Appended packet %u to file.\n", 
+						(unsigned int)packet[0]);
+					swp.NFE++;
+					swp.LFR = (unsigned int)packet[0];
+					swp.LAF = swp.LFR + WINDOW_SIZE;
+					//inQ = 1;
+				} else {
+					// Check if packet already in Q.
+					for(i=0; i<WINDOW_SIZE; ++i) {
+						if(swp.recvQ[i].isValid) {
+							if((unsigned int)packet[0] == swp.recvQ[i].hdr.SeqNum) {
+								inQ = 1;
+								break;
+							}
+						}
+					}
+					if(inQ) {
+						printf("Repeated packet %u discarded,\n", 
+							(unsigned int)packet[0]);
+					} else {
+						// add data to Q
+						swp.recvQ[freeQSlot].hdr.SeqNum = (unsigned int)packet[0];
+						swp.recvQ[freeQSlot].isValid = 1;
+						printf("Packet %u in window and added to queue.\n", 
+							(unsigned int)packet[0]);
+						freeQSlot = (freeQSlot + 1) % WINDOW_SIZE;
+					}
 
+					// Check if have lowest packet to append to file.
+					for(i=0; i<WINDOW_SIZE; ++i) {
+						if(swp.recvQ[i].isValid && !swp.recvQ[i].wasWritten) {
+							if(swp.NFE == swp.recvQ[i].hdr.SeqNum) {
+								outfile = fopen("sentFile", "a");
+								fwrite(packet[1], 1, msgSize - 1, outfile);
+								fclose(outfile);
+								packetsWritten++;
+								swp.recvQ[i].wasWritten = 1;
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			// Check if file write is complete.
+			if ( packetsWritten == totalPackets ) {  // TODO, leave until swp done
+				transferComplete = 1;
+			}
+			
+			inQ = 0;
 		}
-		
-		outfile = fopen("sentFile", "a");
-		// receive file contents
-		// int n = recvfrom(sockfd, line2, 1024, 0,
-		// 	(struct sockaddr*)&serveraddr, &len);
-		//printf("Got file from server: %s\n", line2);  // should only run for text files
-		
-		// process file contents: clear contents of file with same name or create file
-		// Write the buffer to the file.
-		// -wait until get all of file to do this (connect all packets in order?)
-		//fprintf(outfile, "%s", line2);  // write data to file
-		fwrite(line2, 1, msgSize, outfile);  // needed for binary
-		//printf("Received a packet: %d.\n", strlen(line2)+1);
-		clearBuffer(line2);
-		fclose(outfile);
 	}
 	printf("Successfully download a file from server.\n");
 	printf("Closing client.\n");

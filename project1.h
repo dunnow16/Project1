@@ -32,7 +32,8 @@ typedef struct {
     }sendQ[WINDOW_SIZE];
     struct recvQ_slot {
         header hdr;
-        uint8_t wasReceived;  // is msg valid?
+        uint8_t wasWritten;  // written to file?
+        uint8_t isValid;      // real data?
         char msg[PACKET_DATA_SIZE];
     }recvQ[WINDOW_SIZE];
 }swpState;
