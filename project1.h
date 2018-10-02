@@ -123,7 +123,7 @@ void createHeader(char* hdr, uint8_t seqNum/*, uint8_t isAck*/) {
     //     printf("Invalid range for acknowledgement number.\n");
     //     exit(1);
     // }
-    printf("Created header: %u\n", (unsigned char)(hdr[0]));  // TEST
+    printf("Created header: %u\n", hdr[0]);  // TEST
 }
 
 
@@ -156,14 +156,14 @@ void createHeaderStruct(header *hdr, uint8_t seqNum/*, uint8_t isAck*/) {
  * This function appends the header to the front of a packet.
  */
 void createPacket(char* packet, char* hdr, char* data) {
-    memcpy(packet, hdr, H_SIZE);  // change to memcpy
-    memcpy((packet+1), data, PACKET_DATA_SIZE);
+    memcpy(packet, hdr, H_SIZE);  
+    memcpy(&packet[1], data, PACKET_DATA_SIZE);
 }
 
 
 /*
  * This function is used to check for curruption of a packet.
  */
-// int checksum(char *)
+// int checksum(char * 
 
 #endif

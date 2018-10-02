@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 	}
 
 	struct timeval timeout;
-	timeout.tv_sec = 5;   // seconds
+	timeout.tv_sec = 1;   // seconds
 	timeout.tv_usec = 0;  // micro sec
 
 	//set options sockfd, option1, option2
@@ -168,6 +168,7 @@ int main(int argc, char** argv) {
 
 								n = sendto(sockfd, packet, elementsRead+H_SIZE, 0, 
 									(struct sockaddr*)&clientaddr, sizeof(clientaddr));
+								printf("%d\n", n);
 								if(n>0) {
 									// should only need 5 spaces in Q, otherwise outside of window
 									freeQSlot = (freeQSlot + 1) % WINDOW_SIZE;  // cycle about Q as write data
@@ -196,16 +197,26 @@ int main(int argc, char** argv) {
 					// Check for an acknowledgement. TODO
 					// Wait for 5s and then resend oldest packet? or all?
 					// use same socket?
-					packet = (char*)malloc(sizeof(char)*(PACKET_DATA_SIZE + H_SIZE));
-					n = recvfrom(sockfd, packet, WINDOW_SIZE * PACKET_DATA_SIZE, 0, 
+					packet = (char*)malloc(sizeof(char)*(H_SIZE));
+					n = recvfrom(sockfd, packet, H_SIZE+1, 0, 
 						(struct sockaddr*)&clientaddr, &len);
+					printf("Ack n = %d\n", n);  //test
+					printf("Ack packet: %u\n", packet[0]);  //test
 					if(n == -1) {  // waited 5s
 						printf("Time out on receive (5 seconds) waiting for ACK.\n");
-					} else if ( 1 ) {  // validate packet contains data first TODO 
+					} else if ( n > 0 ) {  // validate packet contains data first TODO 
 							swp.LAR = (uint8_t)packet[0];  // TODO works?
 							acksReceived++;
 							printf("Got acknowledgement for packet %d.\n", swp.LAR);
 							free(packet);
+							// Mark the stored packet as acknowledged.
+							int i;
+							for(i = 0; i < WINDOW_SIZE; ++i) {
+								if(swp.sendQ[i].hdr.SeqNum == packet[0]) {
+									swp.sendQ[i].ackRecv = 1;
+									break;
+								}
+							}
 					} else {
 						printf("ERROR: packet has no data to read.\n");
 					}

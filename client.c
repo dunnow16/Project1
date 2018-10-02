@@ -73,7 +73,7 @@ int main(int argc, char** argv){
 	}
 
 	struct timeval timeout;
-	timeout.tv_sec = 5;   // seconds
+	timeout.tv_sec = 1;   // seconds
 	timeout.tv_usec = 0;  // micro sec
 	//set options sockfd, option1, option2
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, 
@@ -98,7 +98,7 @@ int main(int argc, char** argv){
 	while (n == -1) {
 		n = recvfrom(sockfd, packet, PACKET_DATA_SIZE+H_SIZE, 0, 
 			(struct sockaddr*)&serveraddr, &len);
-		if(n == -1){
+		if(n == -1) {
 			printf("Did not receive file size in time. Retrying.\n");
 		}
 	}
@@ -117,7 +117,7 @@ int main(int argc, char** argv){
 	swp.LFR = 0;
 	swp.LAF = WINDOW_SIZE;
 	swp.NFE = 1;
-	int sendAck = 0;
+	u_int8_t sendAck = 0, ackNum = 0;
 	//uint8_t client_seqnum = 1;  // use seqnum from server packets only?
 	uint8_t freeQSlot = 0;
 	int inQ = 0;  // if packet already in the Q
@@ -134,7 +134,7 @@ int main(int argc, char** argv){
 		printf("Header value: %u\n", (uint8_t)packet[0]);  //TEST 
 		printf("n = %d\n", n);  //test
 		// See if can accept a packet.
-		if ( swp.LAF - swp.LFR <= WINDOW_SIZE && n > 0 ) {
+		if ( n > 0 && (swp.LAF - swp.LFR <= WINDOW_SIZE) ) {
 			printf("LFR: %u, LAF: %u, NFE: %u\n", swp.LFR, swp.LAF, swp.NFE);
 			if ( packet[0] <= swp.LFR ||
 				 packet[0] > swp.LAF ) {
@@ -143,30 +143,32 @@ int main(int argc, char** argv){
 				
 				if((uint8_t)packet[0] <= (uint8_t)swp.LFR) {
 					sendAck = 1;
+					ackNum = packet[0];
 				}
 			} else {  // packet is within the window
 				// First check if it's the NFE. Append data to file if so.
 				// Don't add to Q if so, as not needed later.
 				if(packet[0] == swp.NFE) {  // next frame in sequence?
 					outfile = fopen("sentFile", "a");
-					fwrite(&packet[1], 1, sizeof(packet) - 1, outfile);  // needed for binary
+					fwrite(&packet[1], 1, n - H_SIZE, outfile);  // needed for binary
 					//printf("Received a packet: %d.\n", strlen(packet)+1);
-					clearBuffer(packet);
 					fclose(outfile);
 					packetsWritten++;
-					printf("Appended packet %u to file.\n", 
-						(uint8_t)packet[0]);
+					printf("Appended packet %u to file.\n", packet[0]);
 					swp.NFE++;
 					swp.LFR = (uint8_t)packet[0];
 					swp.LAF = (uint8_t)swp.LFR + WINDOW_SIZE;
 					
 					// Send the ACK. A packet with only the seqnum character.
 					sendAck = 1;
+					ackNum = packet[0];
+
+					clearBuffer(packet);
 				} else {
 					// Check if packet already in Q.
 					for(i=0; i<WINDOW_SIZE; ++i) {
 						if(swp.recvQ[i].isValid) {
-							if((uint8_t)packet[0] == swp.recvQ[i].hdr.SeqNum) {
+							if(packet[0] == swp.recvQ[i].hdr.SeqNum) {
 								inQ = 1;
 								break;
 							}
@@ -179,7 +181,7 @@ int main(int argc, char** argv){
 						// add data to Q
 						swp.recvQ[freeQSlot].hdr.SeqNum = (uint8_t)packet[0];
 						swp.recvQ[freeQSlot].isValid = 1;
-						printf("Packet %u in window and added to queue.\n", 
+						printf("Packet %u in window but out of sequence. Added to queue.\n", 
 							(uint8_t)packet[0]);
 						freeQSlot = (freeQSlot + 1) % WINDOW_SIZE;
 					}
@@ -193,20 +195,23 @@ int main(int argc, char** argv){
 								fclose(outfile);
 								packetsWritten++;
 								swp.recvQ[i].wasWritten = 1;
-
+								printf("Wrote packet %u from the Q.\n", swp.NFE);
 								// Send the ACK. A packet with only the seqnum character.
 								sendAck = 1;
+								ackNum = swp.NFE;
 								break;
 							}
 						}
 					}
 
 					if (sendAck) {
-						hdr[0] = (uint8_t)swp.LFR;
-						hdr[1] = '\0';
-						n = sendto(sockfd, hdr, strlen(line)+1, 0,
+						hdr[0] = ackNum;
+						//hdr[1] = '\0';
+						printf("Sending ack %u.\n", hdr[0]);
+						sleep(1);
+						n = sendto(sockfd, &hdr[0], 1, 0,
 							(struct sockaddr*)&serveraddr, sizeof(serveraddr));
-						if (n==-1) {
+						if (n == -1) {
 							printf("ACK for packet %u not sent.\n", 
 								hdr[0]);
 						} else {
