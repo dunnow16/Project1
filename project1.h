@@ -123,7 +123,7 @@ void createHeader(char* hdr, uint8_t seqNum/*, uint8_t isAck*/) {
     //     printf("Invalid range for acknowledgement number.\n");
     //     exit(1);
     // }
-    printf("Created header: %u\n", (unsigned int)(hdr[0]));  // TEST
+    printf("Created header: %u\n", (unsigned char)(hdr[0]));  // TEST
 }
 
 

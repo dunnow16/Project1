@@ -208,6 +208,7 @@ int main(int argc, char** argv) {
 					set header (bit 0)
 					memcpy(after header addr, data, elementsRead)
 					*/
+
 					// Check for an acknowledgement. TODO
 					// Wait for 5s and then resend oldest packet? or all?
 					// use same socket?
@@ -229,10 +230,10 @@ int main(int argc, char** argv) {
 						transferComplete = 1;
 						break;
 					}
-					if ( packetsSent == totalPackets ) {  // TODO, leave until swp done
-						transferComplete = 1;
-						break;
-					}
+					// if ( packetsSent == totalPackets ) {  // TODO, leave until swp done
+					// 	transferComplete = 1;
+					// 	break;
+					// }
 
 					// TODO Resend packet(s) not received.
 					int lowest_i, i;  // find lowest packet seqNum to send
