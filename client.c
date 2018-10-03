@@ -221,6 +221,7 @@ int main(int argc, char** argv){
 								// Send the ACK. A packet with only the seqnum character.
 								sendAck = 1;
 								ackNum = swp.NFE;
+								swp.NFE++;  // Source of failed error checking in demo??? (wasn't here)
 								break;
 							}
 						}

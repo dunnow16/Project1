@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
 				swp.LAR = 0;  // seqnum of last ack received
 				swp.LFS = 0;  // seqnum of last frame (packet) sent
 				server_seqnum = 1;
-				free(packet);
+				//free(packet);
 
 				fclose(fp);  // close the file
 				printf("File sent: exiting server.\n");
