@@ -74,7 +74,7 @@ int main(int argc, char** argv){
 
 	struct timeval timeout;
 	timeout.tv_sec = 1;   // seconds
-	timeout.tv_usec = 0;  // micro sec
+	timeout.tv_usec = 20;  // micro sec
 	//set options sockfd, option1, option2
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, 
 		sizeof(timeout));
@@ -203,20 +203,19 @@ int main(int argc, char** argv){
 							}
 						}
 					}
-
-					if (sendAck) {
-						hdr[0] = ackNum;
-						//hdr[1] = '\0';
-						printf("Sending ack %u.\n", hdr[0]);
-						sleep(1);
-						n = sendto(sockfd, &hdr[0], 1, 0,
-							(struct sockaddr*)&serveraddr, sizeof(serveraddr));
-						if (n == -1) {
-							printf("ACK for packet %u not sent.\n", 
-								hdr[0]);
-						} else {
-							printf("ACK for packet %u sent.\n", hdr[0]);
-						}
+				}
+				if (sendAck) { 
+					hdr[0] = ackNum;
+					//hdr[1] = '\0';
+					printf("Sending ack %u.\n", hdr[0]);
+					n = sendto(sockfd, &hdr[0], 1, 0,
+						(struct sockaddr*)&serveraddr, sizeof(serveraddr));
+					printf("ACK send: n = %d, data[0] = %u\n", n, hdr[0]);
+					if (n == -1) {
+						printf("ACK for packet %u not sent.\n", 
+							hdr[0]);
+					} else {
+						printf("ACK for packet %u sent.\n", hdr[0]);
 					}
 				}
 			}
