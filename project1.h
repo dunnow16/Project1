@@ -13,7 +13,7 @@ typedef struct {
     //int AckNum;  // acknowledgement number: 0..10 (maybe bool)
     //uint8_t isAck;   // 0 or 1, use seqnum to know which ack it's for
     // packet data here?
-}header; 
+}header;
 
 typedef struct {
     //int fileSize;  // size in bytes
@@ -24,18 +24,9 @@ typedef struct {
     uint8_t LFR;  // last frame received
     uint8_t NFE;  // seqnum of next frame expected
     uint8_t pos;  // window position (0 through 2*windowsize-1)
-    struct sendQ_slot {
-        header hdr;  // could check in a loop for seq num matching an ack sent
-        uint8_t ackRecv;  // used to prevent resending old data
-        uint8_t isValid;  // if data has been assigned
-        char msg[PACKET_DATA_SIZE];
-    }sendQ[WINDOW_SIZE];
-    struct recvQ_slot {
         header hdr;
-        uint8_t wasWritten;  // written to file?
-        uint8_t isValid;      // real data?
+        uint8_t wasReceived;  // is msg valid?
         char msg[PACKET_DATA_SIZE];
-    }recvQ[WINDOW_SIZE];
 }swpState;
 
 typedef enum { false, true } bool;
@@ -53,7 +44,7 @@ void clearBuffer(char* b) {
 /**
  * This function clears the input buffer of all characters. If this
  * is run when the buffer is empty, this will pause the program and wait
- * for a character input. Intented to use when input functins do not 
+ * for a character input. Intented to use when input functins do not
  * consume the newline character.
  */
 void clearInputBuffer() {
@@ -62,7 +53,7 @@ void clearInputBuffer() {
 }
 
 
-/** 
+/**
  * This function checks if the port number provided is valid.
  */
 int isValidPort(int port) {
@@ -106,16 +97,26 @@ uint8_t swpInWindow(uint8_t seqno, uint8_t min, uint8_t max) {
  * for the sequence number and 0 or 1 to say if its an acknowledgement.
  * Two bytes are used to store this information. This header will then be
  * appended to a packet to provide this information.
- */ 
-void createHeader(char* hdr, uint8_t seqNum/*, uint8_t isAck*/) {
+ */
+void createHeader(char* hdr, uint8_t seqNum, int checkSum/*, uint8_t isAck*/) {
     //char tmp[H_SIZE+1];
+//   char check];
+
     if ( seqNum >= 0 && seqNum < 256 ) {
         //sprintf(hdr, "%u", seqNum);
-        hdr[0] = (uint8_t)seqNum;
+        hdr[0] = seqNum;
     } else {
         printf("Invalid range for sequence number (>= 256).\n");
         exit(1);
     }
+    if(checkSum >= 0){
+	hdr[1] = checkSum;
+    }
+    	else{
+	printf("Invalid packet");
+	exit(1);
+
+	}
     // if (isAck == 0 || isAck == 1) {
     //     sprintf(tmp, "%u", isAck);
     //     strcat(hdr, tmp);
@@ -123,18 +124,19 @@ void createHeader(char* hdr, uint8_t seqNum/*, uint8_t isAck*/) {
     //     printf("Invalid range for acknowledgement number.\n");
     //     exit(1);
     // }
-    printf("Created header: %u\n", hdr[0]);  // TEST
+
+    printf("Created header: %u\n", (unsigned int)(hdr[0]));  // TEST
 }
 
 
 /*
  * This function creates the header for a packet. The packet is from 0-9
  * for the sequence number and 0 or 1 to say if its an acknowledgement.
- * This header will then be appended to a packet to provide this 
+ * This header will then be appended to a packet to provide this
  * information. A header structure is assigned its values. A packet
  * structure may use this header structure as one of its fields and
  * directly sent all of this information with the message.
- */ 
+ */
 void createHeaderStruct(header *hdr, uint8_t seqNum/*, uint8_t isAck*/) {
     //char tmp[3];
     if ( seqNum >= 0 && seqNum < 2 * WINDOW_SIZE ) {
@@ -151,19 +153,35 @@ void createHeaderStruct(header *hdr, uint8_t seqNum/*, uint8_t isAck*/) {
     // }
 }
 
+/**
+* Checksum function.
+**/
+uint16_t checkSum(const void *buf, int size){
+	unsigned long sum = 0;
+  const uint16_t *ip1 = (const uint16_t*)buf;
+  while (size > 1)
+     {
+         sum += *ip1++;
+         if (sum & 0x80000000)
+                 sum = (sum & 0xFFFF) + (sum >> 16);
+         size -= 2;
+     }
+     while (sum >> 16)
+         sum = (sum & 0xFFFF) + (sum >> 16);
+     return(~sum);
+}
 
 /**
  * This function appends the header to the front of a packet.
  */
 void createPacket(char* packet, char* hdr, char* data) {
-    memcpy(packet, hdr, H_SIZE);  
+    memcpy(packet, hdr, H_SIZE);  // change to memcpy
     memcpy(&packet[1], data, PACKET_DATA_SIZE);
 }
-
 
 /*
  * This function is used to check for curruption of a packet.
  */
-// int checksum(char * 
+// int checksum(char *)
 
 #endif
